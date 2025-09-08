@@ -1,2 +1,5 @@
-pip install python-telegram-bot --upgrade
-pip install groq
+python-telegram-bot
+groq
+sqlalchemy
+psycopg2-binary
+httpx 
