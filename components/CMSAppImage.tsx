@@ -7,12 +7,17 @@ export function CMSAppImage({ app }: { app: AppItem }) {
   const [imageUrl, setImageUrl] = useState<string>('');
 
   useEffect(() => {
-    const url = URL.createObjectURL(app.image);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setImageUrl(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
+    if (!app.image) return;
+    try {
+      const url = URL.createObjectURL(app.image);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setImageUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } catch (error) {
+      console.error('Failed to create object URL for image:', error);
+    }
   }, [app.image]);
 
   if (!imageUrl) {

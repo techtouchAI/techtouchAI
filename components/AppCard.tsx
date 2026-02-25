@@ -12,23 +12,36 @@ export default function AppCard({ app }: AppCardProps) {
   const [imageUrl, setImageUrl] = useState<string>('');
 
   useEffect(() => {
-    const url = URL.createObjectURL(app.image);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setImageUrl(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
+    if (!app.image) return;
+    try {
+      const url = URL.createObjectURL(app.image);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setImageUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } catch (error) {
+      console.error('Failed to create object URL for image:', error);
+    }
   }, [app.image]);
 
   const handleDownload = () => {
-    const url = URL.createObjectURL(app.file);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = app.fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    if (!app.file) {
+      console.error('No file available for download');
+      return;
+    }
+    try {
+      const url = URL.createObjectURL(app.file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = app.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error('Failed to create object URL for file:', error);
+    }
   };
 
   return (
