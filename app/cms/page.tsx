@@ -122,47 +122,47 @@ export default function CMS() {
           
           {/* Form Section */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                {editingId ? <Edit2 className="w-5 h-5 text-indigo-600" /> : <Plus className="w-5 h-5 text-indigo-600" />}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 sticky top-24">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                {editingId ? <Edit2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> : <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
                 {editingId ? 'تعديل التطبيق' : 'إضافة تطبيق جديد'}
               </h2>
               
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">اسم التطبيق *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم التطبيق *</label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                     placeholder="أدخل اسم التطبيق"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الوصف (اختياري)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الوصف (اختياري)</label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
+                    className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
                     placeholder="وصف مختصر للتطبيق"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">صورة التطبيق {editingId ? '(اختياري للتغيير)' : '*'}</label>
-                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:border-indigo-500 transition-colors cursor-pointer bg-gray-50" onClick={() => imageInputRef.current?.click()}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">صورة التطبيق {editingId ? '(اختياري للتغيير)' : '*'}</label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-700 border-dashed rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors cursor-pointer bg-gray-50 dark:bg-gray-800" onClick={() => imageInputRef.current?.click()}>
                     <div className="space-y-1 text-center">
                       <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="flex text-sm text-gray-600 justify-center">
-                        <span className="relative rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                      <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
+                        <span className="relative rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                           {imageFile ? imageFile.name : 'اختر صورة'}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500">PNG, JPG, GIF حتى 5MB</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF حتى 5MB</p>
                     </div>
                   </div>
                   <input
@@ -177,16 +177,16 @@ export default function CMS() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ملف التطبيق {editingId ? '(اختياري للتغيير)' : '*'}</label>
-                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:border-indigo-500 transition-colors cursor-pointer bg-gray-50" onClick={() => fileInputRef.current?.click()}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ملف التطبيق {editingId ? '(اختياري للتغيير)' : '*'}</label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-700 border-dashed rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors cursor-pointer bg-gray-50 dark:bg-gray-800" onClick={() => fileInputRef.current?.click()}>
                     <div className="space-y-1 text-center">
                       <FileIcon className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="flex text-sm text-gray-600 justify-center">
-                        <span className="relative rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                      <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
+                        <span className="relative rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                           {appFile ? appFile.name : 'اختر ملف'}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500">APK, ZIP, RAR, EXE</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">APK, ZIP, RAR, EXE</p>
                     </div>
                   </div>
                   <input
@@ -212,7 +212,7 @@ export default function CMS() {
                     <button
                       type="button"
                       onClick={resetForm}
-                      className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                      className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
                       إلغاء
                     </button>
@@ -224,42 +224,42 @@ export default function CMS() {
 
           {/* List Section */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <LayoutGrid className="w-5 h-5 text-indigo-600" />
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                <LayoutGrid className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 التطبيقات المنشورة ({apps.length})
               </h2>
 
               {loading ? (
                 <div className="flex justify-center items-center h-64">
-                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
                 </div>
               ) : apps.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                  <p className="text-gray-500">لا توجد تطبيقات منشورة حالياً</p>
+                <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                  <p className="text-gray-500 dark:text-gray-400">لا توجد تطبيقات منشورة حالياً</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {apps.map((app) => (
-                    <div key={app.id} className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                    <div key={app.id} className="flex items-center gap-4 p-4 border border-gray-100 dark:border-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
                         <CMSAppImage app={app} />
                       </div>
                       <div className="flex-grow min-w-0">
-                        <h3 className="font-bold text-gray-900 truncate">{app.name}</h3>
-                        <p className="text-sm text-gray-500 truncate">{app.fileName}</p>
+                        <h3 className="font-bold text-gray-900 dark:text-white truncate">{app.name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{app.fileName}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleEdit(app)}
-                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
                           title="تعديل"
                         >
                           <Edit2 className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(app.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                           title="حذف"
                         >
                           <Trash2 className="w-5 h-5" />
