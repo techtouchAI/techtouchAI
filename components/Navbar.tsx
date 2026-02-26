@@ -15,11 +15,9 @@ export default function Navbar() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsDark(true);
       document.documentElement.classList.add('dark');
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsDark(false);
       document.documentElement.classList.remove('dark');
     }
