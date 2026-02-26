@@ -117,8 +117,8 @@ export const fetchFromGithub = async (config: GithubConfig, path: string) => {
       headers: {
         Authorization: `Bearer ${config.token}`,
         Accept: 'application/vnd.github.v3+json',
+        'If-None-Match': '',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
       },
       cache: 'no-store',
     });

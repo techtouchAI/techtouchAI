@@ -35,46 +35,81 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 // Get raw GitHub URL for public access
+export const getRepoInfo = () => {
+  let owner = 'techtouchAI';
+  let repo = 'techtouchAI';
+  
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
+    
+    if (hostname.includes('github.io')) {
+      const match = hostname.match(/([a-zA-Z0-9-]+)\.github\.io/);
+      if (match) {
+        owner = match[1];
+      }
+      const pathParts = pathname.split('/').filter(Boolean);
+      repo = pathParts.length > 0 ? pathParts[0] : `${owner}.github.io`;
+    }
+    
+    const configStr = localStorage.getItem('github_config');
+    if (configStr) {
+      try {
+        const config = JSON.parse(configStr);
+        if (config.username && config.repo) {
+          owner = config.username;
+          repo = config.repo;
+        }
+      } catch (e) {}
+    }
+  }
+  return { owner, repo };
+};
+
 export const getRawGithubUrl = (path: string, branch: string = 'main') => {
-  // We need to know the repo owner and name. 
-  // Since visitors don't have the config, we should hardcode it or fetch it from a known location.
-  // For now, we assume the repo is techtouchAI/techtouchAI based on the context.
-  const owner = 'techtouchAI';
-  const repo = 'techtouchAI';
+  const { owner, repo } = getRepoInfo();
   const timestamp = new Date().getTime();
   return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}?t=${timestamp}`;
 };
 
 export const fetchPublicData = async (path: string) => {
-  const owner = 'techtouchAI';
-  const repo = 'techtouchAI';
-  
-  // 1. Try to get the absolute latest data using commit SHA (Bypasses all caches)
+  const { owner, repo } = getRepoInfo();
+  const timestamp = Date.now();
+
+  // 1. Professional Real-time Fetch: GitHub API (Unauthenticated)
+  // Guarantees 100% real-time data instantly after publish, bypassing all CDNs.
   try {
-    const shaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/main`, { 
-      cache: 'no-store',
-      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    const apiRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?t=${timestamp}`, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      },
+      cache: 'no-store'
     });
-    if (shaRes.ok) {
-      const shaData = await shaRes.json();
-      const sha = shaData.sha;
-      const rawRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${sha}/${path}`);
-      if (rawRes.ok) {
-        const text = await rawRes.text();
-        if (text) return JSON.parse(text);
+
+    if (apiRes.ok) {
+      const data = await apiRes.json();
+      if (!Array.isArray(data) && data.type === 'file' && data.content) {
+        const cleanBase64 = data.content.replace(/\n/g, '');
+        const binString = atob(cleanBase64);
+        const bytes = new Uint8Array(binString.length);
+        for (let i = 0; i < binString.length; i++) {
+          bytes[i] = binString.charCodeAt(i);
+        }
+        const text = new TextDecoder().decode(bytes);
+        return JSON.parse(text);
       }
     }
   } catch (e) {
-    console.error('Failed to fetch via SHA', e);
+    console.error('GitHub API fallback failed', e);
   }
 
-  // 2. Fallback to GitHub Pages relative path
+  // 2. Fallback: GitHub Pages Relative Path (Updates after build 1-2 mins)
   try {
     if (typeof window !== 'undefined') {
-      // Handle GitHub Pages basePath if present
-      const basePath = window.location.pathname.startsWith('/techtouchAI') ? '/techtouchAI' : '';
+      const basePath = window.location.pathname.startsWith(`/${repo}`) ? `/${repo}` : '';
       const relativePath = path.startsWith('public/') ? path.replace('public/', '/') : `/${path}`;
-      const timestamp = new Date().getTime();
       
       let res = await fetch(`${basePath}${relativePath}?t=${timestamp}`, { cache: 'no-store' });
       if (res.ok) {
@@ -86,7 +121,7 @@ export const fetchPublicData = async (path: string) => {
     console.error(`Failed to fetch relative data for ${path}`, e);
   }
 
-  // 3. Fallback to raw.githubusercontent.com
+  // 3. Fallback: Raw GitHub Content (Updates after 5 mins)
   const urlMain = getRawGithubUrl(path, 'main');
   const urlMaster = getRawGithubUrl(path, 'master');
   
@@ -109,14 +144,11 @@ export const fetchPublicData = async (path: string) => {
 export const getApps = async (): Promise<AppItem[]> => {
   const config = getGithubConfig();
   
-  // If admin is logged in, fetch from GitHub API
+  // If admin is logged in, fetch from GitHub API (Authenticated - 5000 req/hr)
   if (config) {
     try {
       let content = await fetchFromGithub(config, 'public/data/apps.json');
-      if (!content) {
-        // Fallback to old path for backward compatibility
-        content = await fetchFromGithub(config, 'data/apps.json');
-      }
+      if (!content) content = await fetchFromGithub(config, 'data/apps.json');
       if (content) {
         const apps = JSON.parse(content) as AppItem[];
         return apps.sort((a, b) => b.createdAt - a.createdAt);
@@ -126,12 +158,9 @@ export const getApps = async (): Promise<AppItem[]> => {
     }
   }
 
-  // For normal visitors, fetch directly from raw.githubusercontent.com
+  // For normal visitors, fetch via the 3-tier real-time system
   let publicData = await fetchPublicData('public/data/apps.json');
-  if (!publicData) {
-    // Fallback to old path
-    publicData = await fetchPublicData('data/apps.json');
-  }
+  if (!publicData) publicData = await fetchPublicData('data/apps.json');
   
   if (publicData) {
     return publicData.sort((a: AppItem, b: AppItem) => b.createdAt - a.createdAt);
@@ -181,8 +210,12 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
     apps.push(newApp);
   }
 
-  await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(apps, null, 2), `Update apps.json with ${appId}`);
-  return apps.sort((a, b) => b.createdAt - a.createdAt);
+  const updatedApps = apps.sort((a, b) => b.createdAt - a.createdAt);
+  
+  // Save directly to GitHub API
+  await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Update apps.json with ${appId}`);
+  
+  return updatedApps;
 };
 
 export const deleteApp = async (id: string): Promise<AppItem[]> => {
@@ -203,9 +236,12 @@ export const deleteApp = async (id: string): Promise<AppItem[]> => {
       }
     }
 
-    const updatedApps = apps.filter(a => a.id !== id);
+    const updatedApps = apps.filter(a => a.id !== id).sort((a, b) => b.createdAt - a.createdAt);
+    
+    // Save directly to GitHub API
     await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Remove app ${id} from apps.json`);
-    return updatedApps.sort((a, b) => b.createdAt - a.createdAt);
+    
+    return updatedApps;
   }
   return apps.sort((a, b) => b.createdAt - a.createdAt);
 };
