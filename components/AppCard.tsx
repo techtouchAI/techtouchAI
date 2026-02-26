@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { AppItem } from '@/lib/db';
+import { getGithubConfig } from '@/lib/github';
 import { Download } from 'lucide-react';
 
 interface AppCardProps {
@@ -9,40 +9,24 @@ interface AppCardProps {
 }
 
 export default function AppCard({ app }: AppCardProps) {
-  const [imageUrl, setImageUrl] = useState<string>('');
-
-  useEffect(() => {
-    if (!app.image) return;
-    try {
-      const url = URL.createObjectURL(app.image);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setImageUrl(url);
-      return () => {
-        URL.revokeObjectURL(url);
-      };
-    } catch (error) {
-      console.error('Failed to create object URL for image:', error);
-    }
-  }, [app.image]);
+  const config = getGithubConfig();
 
   const handleDownload = () => {
-    if (!app.file) {
-      console.error('No file available for download');
-      return;
-    }
-    try {
-      const url = URL.createObjectURL(app.file);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = app.fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (error) {
-      console.error('Failed to create object URL for file:', error);
-    }
+    if (!config) return;
+    
+    // Direct download link from GitHub raw content
+    const url = `https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${app.filePath}`;
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = app.fileName;
+    a.target = '_blank'; // Open in new tab as fallback
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
+
+  const imageUrl = config ? `https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${app.imagePath}` : '';
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
@@ -56,6 +40,9 @@ export default function AppCard({ app }: AppCardProps) {
             src={imageUrl}
             alt={app.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://picsum.photos/200';
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

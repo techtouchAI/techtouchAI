@@ -1,28 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { AppItem } from '@/lib/db';
+import { getGithubConfig } from '@/lib/github';
 
 export function CMSAppImage({ app }: { app: AppItem }) {
-  const [imageUrl, setImageUrl] = useState<string>('');
-
-  useEffect(() => {
-    if (!app.image) return;
-    try {
-      const url = URL.createObjectURL(app.image);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setImageUrl(url);
-      return () => {
-        URL.revokeObjectURL(url);
-      };
-    } catch (error) {
-      console.error('Failed to create object URL for image:', error);
-    }
-  }, [app.image]);
-
-  if (!imageUrl) {
-    return <div className="w-full h-full bg-gray-100 animate-pulse" />;
+  const config = getGithubConfig();
+  
+  if (!config) {
+    return <div className="w-full h-full bg-gray-100 dark:bg-gray-800 animate-pulse" />;
   }
+
+  const imageUrl = `https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${app.imagePath}`;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -30,6 +18,9 @@ export function CMSAppImage({ app }: { app: AppItem }) {
       src={imageUrl}
       alt={app.name}
       className="w-full h-full object-cover"
+      onError={(e) => {
+        (e.target as HTMLImageElement).src = 'https://picsum.photos/200'; // Fallback
+      }}
     />
   );
 }

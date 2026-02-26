@@ -3,10 +3,14 @@
 import Link from 'next/link';
 import { LayoutGrid, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { getSiteSettings, SiteSettings } from '@/lib/db';
+import { getGithubConfig } from '@/lib/github';
 
 export default function Navbar() {
   const [isDark, setIsDark] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string>('');
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -20,6 +24,20 @@ export default function Navbar() {
       setIsDark(false);
       document.documentElement.classList.remove('dark');
     }
+
+    const loadSettings = async () => {
+      try {
+        const data = await getSiteSettings();
+        setSettings(data);
+        const config = getGithubConfig();
+        if (data?.siteLogoPath && config) {
+          setLogoUrl(`https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${data.siteLogoPath}`);
+        }
+      } catch (error) {
+        console.error('Failed to load site settings:', error);
+      }
+    };
+    loadSettings();
   }, []);
 
   const toggleDark = () => {
@@ -40,8 +58,15 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <Link href="/" className="flex items-center gap-2 text-xl font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
-              <LayoutGrid className="w-6 h-6" />
-              تطبيقات للشاشات
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
+              ) : (
+                <LayoutGrid className="w-6 h-6" />
+              )}
+              {settings?.siteName !== '' && (
+                <span>{settings?.siteName || 'تطبيقات للشاشات'}</span>
+              )}
             </Link>
           </div>
           <div className="flex items-center">
