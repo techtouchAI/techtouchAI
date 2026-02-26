@@ -1,8 +1,10 @@
 'use client';
 
 import { AppItem, getRawGithubUrl } from '@/lib/db';
-import { Download } from 'lucide-react';
+import { Download, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { getViews } from '@/lib/counter';
 
 interface AppCardProps {
   app: AppItem;
@@ -10,6 +12,13 @@ interface AppCardProps {
 
 export default function AppCard({ app }: AppCardProps) {
   const imageUrl = getRawGithubUrl(app.imagePath);
+  const [views, setViews] = useState<number | null>(null);
+
+  useEffect(() => {
+    getViews(app.id).then(count => {
+      if (count !== null) setViews(count);
+    });
+  }, [app.id]);
 
   return (
     <Link href={`/app?id=${app.id}`} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
@@ -45,10 +54,14 @@ export default function AppCard({ app }: AppCardProps) {
           {app.name}
         </h3>
         {app.description && (
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2 text-center">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2 text-center mb-2">
             {app.description}
           </p>
         )}
+        <div className="flex items-center justify-center gap-1 mt-auto text-xs text-gray-400 dark:text-gray-500">
+          <Eye className="w-3.5 h-3.5" />
+          <span>{views !== null ? views : '...'} مشاهدة</span>
+        </div>
       </div>
     </Link>
   );
