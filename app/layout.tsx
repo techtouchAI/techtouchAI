@@ -16,14 +16,14 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <head>
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-M30SE8J69J"></script>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-TR55PX6G95"></script>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
-              gtag('config', 'G-M30SE8J69J');
+              gtag('config', 'G-TR55PX6G95');
             `,
           }}
         />
