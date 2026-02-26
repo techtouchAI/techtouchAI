@@ -46,13 +46,32 @@ export const getRawGithubUrl = (path: string, branch: string = 'main') => {
 };
 
 export const fetchPublicData = async (path: string) => {
+  // First try to fetch from the relative path (GitHub Pages)
+  // This ensures we get the data that was built with the site
+  try {
+    if (typeof window !== 'undefined') {
+      // Handle GitHub Pages basePath if present
+      const basePath = window.location.pathname.startsWith('/techtouchAI') ? '/techtouchAI' : '';
+      const relativePath = path.startsWith('public/') ? path.replace('public/', '/') : `/${path}`;
+      const timestamp = new Date().getTime();
+      
+      let res = await fetch(`${basePath}${relativePath}?t=${timestamp}`, { cache: 'no-store' });
+      if (res.ok) {
+        const text = await res.text();
+        if (text) return JSON.parse(text);
+      }
+    }
+  } catch (e) {
+    console.error(`Failed to fetch relative data for ${path}`, e);
+  }
+
+  // Fallback to raw.githubusercontent.com
   const urlMain = getRawGithubUrl(path, 'main');
   const urlMaster = getRawGithubUrl(path, 'master');
   
   try {
     let res = await fetch(urlMain, { cache: 'no-store' });
     if (!res.ok && res.status === 404) {
-      // Try master branch if main is not found
       res = await fetch(urlMaster, { cache: 'no-store' });
     }
     

@@ -54,6 +54,10 @@ export const uploadToGithub = async (
         owner: config.username,
         repo: config.repo,
         path,
+        headers: {
+          'If-None-Match': '',
+          'Cache-Control': 'no-cache'
+        }
       });
       if (!Array.isArray(data) && data.type === 'file') {
         sha = data.sha;
@@ -92,6 +96,10 @@ export const deleteFromGithub = async (
       owner: config.username,
       repo: config.repo,
       path,
+      headers: {
+        'If-None-Match': '',
+        'Cache-Control': 'no-cache'
+      }
     });
 
     if (!Array.isArray(data) && data.type === 'file') {
@@ -117,6 +125,9 @@ export const fetchFromGithub = async (config: GithubConfig, path: string) => {
       headers: {
         Authorization: `Bearer ${config.token}`,
         Accept: 'application/vnd.github.v3+json',
+        'If-None-Match': '',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
       },
       cache: 'no-store',
     });
