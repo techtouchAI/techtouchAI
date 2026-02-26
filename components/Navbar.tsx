@@ -26,8 +26,22 @@ export default function Navbar() {
 
     const loadSettings = async () => {
       try {
+        // Load from cache first for instant display
+        const cachedSettings = localStorage.getItem('cached_settings');
+        if (cachedSettings) {
+          const parsed = JSON.parse(cachedSettings);
+          setSettings(parsed);
+          if (parsed?.siteLogoPath) {
+            setLogoUrl(getRawGithubUrl(parsed.siteLogoPath));
+          }
+        }
+
+        // Fetch fresh data
         const data = await getSiteSettings();
         setSettings(data);
+        if (data) {
+          localStorage.setItem('cached_settings', JSON.stringify(data));
+        }
         if (data?.siteLogoPath) {
           setLogoUrl(getRawGithubUrl(data.siteLogoPath));
         }

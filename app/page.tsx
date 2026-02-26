@@ -18,12 +18,32 @@ export default function Home() {
 
   const loadData = async () => {
     try {
+      // Try to load from local storage first for instant display
+      const cachedApps = localStorage.getItem('cached_apps');
+      const cachedSettings = localStorage.getItem('cached_settings');
+      
+      if (cachedApps) {
+        setApps(JSON.parse(cachedApps));
+        setLoading(false); // Hide loader if we have cached apps
+      }
+      if (cachedSettings) {
+        setSettings(JSON.parse(cachedSettings));
+      }
+
+      // Fetch fresh data in the background
       const [appsData, settingsData] = await Promise.all([
         getApps(),
         getSiteSettings()
       ]);
+      
       setApps(appsData);
       setSettings(settingsData);
+      
+      // Update cache
+      localStorage.setItem('cached_apps', JSON.stringify(appsData));
+      if (settingsData) {
+        localStorage.setItem('cached_settings', JSON.stringify(settingsData));
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -58,8 +78,16 @@ export default function Home() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col animate-pulse">
+                <div className="aspect-square bg-gray-200 dark:bg-gray-800 w-full"></div>
+                <div className="p-4 flex flex-col gap-2">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4 mx-auto"></div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/2 mx-auto"></div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : apps.length === 0 ? (
           <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
