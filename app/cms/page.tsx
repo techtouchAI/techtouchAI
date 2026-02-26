@@ -87,7 +87,8 @@ export default function CMS() {
     e.preventDefault();
     setSavingSettings(true);
     try {
-      await saveSiteSettings({ siteName }, logoFile);
+      const newSettings = await saveSiteSettings({ siteName }, logoFile);
+      setSiteName(newSettings.siteName);
       alert('تم حفظ الإعدادات بنجاح');
       setLogoFile(null);
     } catch (error) {
@@ -114,8 +115,8 @@ export default function CMS() {
         return;
       }
 
-      await saveApp({ name, description }, imageFile, appFiles, editingId || undefined);
-      await loadData();
+      const updatedApps = await saveApp({ name, description }, imageFile, appFiles, editingId || undefined);
+      setApps(updatedApps);
       resetForm();
     } catch (error) {
       console.error('Failed to save app:', error);
@@ -137,8 +138,8 @@ export default function CMS() {
   const handleDelete = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا التطبيق؟')) return;
     try {
-      await deleteApp(id);
-      await loadData();
+      const updatedApps = await deleteApp(id);
+      setApps(updatedApps);
       if (editingId === id) resetForm();
     } catch (error) {
       console.error('Failed to delete app:', error);

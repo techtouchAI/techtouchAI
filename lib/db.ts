@@ -46,8 +46,29 @@ export const getRawGithubUrl = (path: string, branch: string = 'main') => {
 };
 
 export const fetchPublicData = async (path: string) => {
-  // First try to fetch from the relative path (GitHub Pages)
-  // This ensures we get the data that was built with the site
+  const owner = 'techtouchAI';
+  const repo = 'techtouchAI';
+  
+  // 1. Try to get the absolute latest data using commit SHA (Bypasses all caches)
+  try {
+    const shaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/main`, { 
+      cache: 'no-store',
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (shaRes.ok) {
+      const shaData = await shaRes.json();
+      const sha = shaData.sha;
+      const rawRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${sha}/${path}`);
+      if (rawRes.ok) {
+        const text = await rawRes.text();
+        if (text) return JSON.parse(text);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch via SHA', e);
+  }
+
+  // 2. Fallback to GitHub Pages relative path
   try {
     if (typeof window !== 'undefined') {
       // Handle GitHub Pages basePath if present
@@ -65,7 +86,7 @@ export const fetchPublicData = async (path: string) => {
     console.error(`Failed to fetch relative data for ${path}`, e);
   }
 
-  // Fallback to raw.githubusercontent.com
+  // 3. Fallback to raw.githubusercontent.com
   const urlMain = getRawGithubUrl(path, 'main');
   const urlMaster = getRawGithubUrl(path, 'master');
   
@@ -119,7 +140,7 @@ export const getApps = async (): Promise<AppItem[]> => {
   return [];
 };
 
-export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File, appFiles: File[], id?: string): Promise<void> => {
+export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File, appFiles: File[], id?: string): Promise<AppItem[]> => {
   const config = getGithubConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
@@ -161,9 +182,10 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
   }
 
   await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(apps, null, 2), `Update apps.json with ${appId}`);
+  return apps.sort((a, b) => b.createdAt - a.createdAt);
 };
 
-export const deleteApp = async (id: string): Promise<void> => {
+export const deleteApp = async (id: string): Promise<AppItem[]> => {
   const config = getGithubConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
@@ -183,10 +205,12 @@ export const deleteApp = async (id: string): Promise<void> => {
 
     const updatedApps = apps.filter(a => a.id !== id);
     await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Remove app ${id} from apps.json`);
+    return updatedApps.sort((a, b) => b.createdAt - a.createdAt);
   }
+  return apps.sort((a, b) => b.createdAt - a.createdAt);
 };
 
-export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPath'>, logoFile?: File | null): Promise<void> => {
+export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPath'>, logoFile?: File | null): Promise<SiteSettings> => {
   const config = getGithubConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
@@ -207,6 +231,7 @@ export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPat
   };
 
   await uploadToGithub(config, 'public/data/settings.json', JSON.stringify(newSettings, null, 2), 'Update site settings');
+  return newSettings;
 };
 
 export const getSiteSettings = async (): Promise<SiteSettings | null> => {
