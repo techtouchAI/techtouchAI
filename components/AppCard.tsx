@@ -12,7 +12,7 @@ export default function AppCard({ app }: AppCardProps) {
   const imageUrl = getRawGithubUrl(app.imagePath);
 
   return (
-    <Link href={`/app/${app.id}`} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
+    <Link href={`/app?id=${app.id}`} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
       <div className="relative aspect-square overflow-hidden bg-gray-50 dark:bg-gray-800 flex-shrink-0">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
