@@ -16,6 +16,27 @@ export const saveGithubConfig = (config: GithubConfig) => {
   localStorage.setItem('github_config', JSON.stringify(config));
 };
 
+// Helper to safely encode utf-8 to base64
+const encodeBase64 = (str: string) => {
+  const bytes = new TextEncoder().encode(str);
+  let binString = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binString += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binString);
+};
+
+// Helper to safely decode base64 to utf-8
+const decodeBase64 = (base64: string) => {
+  const cleanBase64 = base64.replace(/\n/g, '');
+  const binString = atob(cleanBase64);
+  const bytes = new Uint8Array(binString.length);
+  for (let i = 0; i < binString.length; i++) {
+    bytes[i] = binString.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+};
+
 export const uploadToGithub = async (
   config: GithubConfig,
   path: string,
@@ -47,7 +68,7 @@ export const uploadToGithub = async (
       repo: config.repo,
       path,
       message,
-      content: isBase64 ? content : btoa(unescape(encodeURIComponent(content))),
+      content: isBase64 ? content : encodeBase64(content),
       sha,
     });
 
@@ -90,26 +111,25 @@ export const deleteFromGithub = async (
 };
 
 export const fetchFromGithub = async (config: GithubConfig, path: string) => {
-  const octokit = new Octokit({ auth: config.token });
-
+  const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${path}?t=${Date.now()}`;
   try {
-    const { data } = await octokit.rest.repos.getContent({
-      owner: config.username,
-      repo: config.repo,
-      path,
+    const res = await fetch(url, {
       headers: {
-        'If-None-Match': '',
-        'Cache-Control': 'no-cache'
-      }
+        Authorization: `Bearer ${config.token}`,
+        Accept: 'application/vnd.github.v3+json',
+      },
+      cache: 'no-store',
     });
-
-    if (!Array.isArray(data) && data.type === 'file' && data.content) {
-      return decodeURIComponent(escape(atob(data.content)));
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (!Array.isArray(data) && data.type === 'file' && data.content) {
+        return decodeBase64(data.content);
+      }
     }
     return null;
-  } catch (error: any) {
-    if (error.status === 404) return null;
+  } catch (error) {
     console.error('GitHub API Error:', error);
-    throw error;
+    return null;
   }
 };

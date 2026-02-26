@@ -8,8 +8,16 @@ interface AppCardProps {
 }
 
 export default function AppCard({ app }: AppCardProps) {
-  const handleDownload = () => {
-    const url = getRawGithubUrl(app.filePath);
+  const handleDownload = async () => {
+    let url = getRawGithubUrl(app.filePath, 'main');
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      if (!res.ok && res.status === 404) {
+        url = getRawGithubUrl(app.filePath, 'master');
+      }
+    } catch (e) {
+      // Ignore fetch error and just try main
+    }
     const a = document.createElement('a');
     a.href = url;
     a.download = app.fileName;
@@ -34,7 +42,12 @@ export default function AppCard({ app }: AppCardProps) {
             alt={app.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://picsum.photos/200';
+              const target = e.target as HTMLImageElement;
+              if (target.src.includes('/main/')) {
+                target.src = target.src.replace('/main/', '/master/');
+              } else {
+                target.src = 'https://picsum.photos/200';
+              }
             }}
           />
         ) : (

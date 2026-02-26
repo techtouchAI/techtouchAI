@@ -29,26 +29,33 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 // Get raw GitHub URL for public access
-export const getRawGithubUrl = (path: string) => {
+export const getRawGithubUrl = (path: string, branch: string = 'main') => {
   // We need to know the repo owner and name. 
   // Since visitors don't have the config, we should hardcode it or fetch it from a known location.
   // For now, we assume the repo is techtouchAI/techtouchAI based on the context.
   const owner = 'techtouchAI';
   const repo = 'techtouchAI';
   const timestamp = new Date().getTime();
-  return `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}?t=${timestamp}`;
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}?t=${timestamp}`;
 };
 
 export const fetchPublicData = async (path: string) => {
-  const url = getRawGithubUrl(path);
+  const urlMain = getRawGithubUrl(path, 'main');
+  const urlMaster = getRawGithubUrl(path, 'master');
+  
   try {
-    const res = await fetch(url, { cache: 'no-store' });
+    let res = await fetch(urlMain, { cache: 'no-store' });
+    if (!res.ok && res.status === 404) {
+      // Try master branch if main is not found
+      res = await fetch(urlMaster, { cache: 'no-store' });
+    }
+    
     if (res.ok) {
       const text = await res.text();
       return text ? JSON.parse(text) : null;
     }
   } catch (e) {
-    console.error(`Failed to fetch ${url}`, e);
+    console.error(`Failed to fetch public data for ${path}`, e);
   }
   return null;
 };
@@ -59,7 +66,11 @@ export const getApps = async (): Promise<AppItem[]> => {
   // If admin is logged in, fetch from GitHub API
   if (config) {
     try {
-      const content = await fetchFromGithub(config, 'public/data/apps.json');
+      let content = await fetchFromGithub(config, 'public/data/apps.json');
+      if (!content) {
+        // Fallback to old path for backward compatibility
+        content = await fetchFromGithub(config, 'data/apps.json');
+      }
       if (content) {
         const apps = JSON.parse(content) as AppItem[];
         return apps.sort((a, b) => b.createdAt - a.createdAt);
@@ -70,7 +81,12 @@ export const getApps = async (): Promise<AppItem[]> => {
   }
 
   // For normal visitors, fetch directly from raw.githubusercontent.com
-  const publicData = await fetchPublicData('public/data/apps.json');
+  let publicData = await fetchPublicData('public/data/apps.json');
+  if (!publicData) {
+    // Fallback to old path
+    publicData = await fetchPublicData('data/apps.json');
+  }
+  
   if (publicData) {
     return publicData.sort((a: AppItem, b: AppItem) => b.createdAt - a.createdAt);
   }
@@ -162,11 +178,17 @@ export const getSiteSettings = async (): Promise<SiteSettings | null> => {
   
   if (config) {
     try {
-      const content = await fetchFromGithub(config, 'public/data/settings.json');
+      let content = await fetchFromGithub(config, 'public/data/settings.json');
+      if (!content) {
+        content = await fetchFromGithub(config, 'data/settings.json');
+      }
       if (content) return JSON.parse(content);
     } catch (e) {}
   }
 
-  const publicData = await fetchPublicData('public/data/settings.json');
+  let publicData = await fetchPublicData('public/data/settings.json');
+  if (!publicData) {
+    publicData = await fetchPublicData('data/settings.json');
+  }
   return publicData || null;
 };

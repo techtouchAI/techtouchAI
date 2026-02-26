@@ -12,7 +12,12 @@ export function CMSAppImage({ app }: { app: AppItem }) {
       alt={app.name}
       className="w-full h-full object-cover"
       onError={(e) => {
-        (e.target as HTMLImageElement).src = 'https://picsum.photos/200'; // Fallback
+        const target = e.target as HTMLImageElement;
+        if (target.src.includes('/main/')) {
+          target.src = target.src.replace('/main/', '/master/');
+        } else {
+          target.src = 'https://picsum.photos/200';
+        }
       }}
     />
   );

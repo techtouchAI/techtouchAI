@@ -70,7 +70,19 @@ export default function Navbar() {
             <Link href="/" className="flex items-center gap-2 text-xl font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
+                <img 
+                  src={logoUrl} 
+                  alt="Logo" 
+                  className="w-8 h-8 object-contain rounded-lg" 
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.src.includes('/main/')) {
+                      target.src = target.src.replace('/main/', '/master/');
+                    } else {
+                      setLogoUrl(''); // Hide if both fail
+                    }
+                  }}
+                />
               ) : (
                 <LayoutGrid className="w-6 h-6" />
               )}
