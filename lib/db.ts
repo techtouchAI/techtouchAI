@@ -29,15 +29,55 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+export const getPublicUrl = (path: string) => {
+  if (!path) return '';
+  const cleanPath = path.replace(/^public\//, '');
+  if (typeof window !== 'undefined') {
+    const segments = window.location.pathname.split('/');
+    if (segments.length > 1 && segments[1] !== '' && segments[1] !== 'cms') {
+      return `/${segments[1]}/${cleanPath}`;
+    }
+  }
+  return `/${cleanPath}`;
+};
+
+export const fetchPublicData = async (path: string) => {
+  const timestamp = new Date().getTime();
+  const url = `${getPublicUrl('public/' + path)}?t=${timestamp}`;
+  try {
+    const res = await fetch(url);
+    if (res.ok) {
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    }
+  } catch (e) {
+    console.error(`Failed to fetch ${url}`, e);
+  }
+  return null;
+};
+
 export const getApps = async (): Promise<AppItem[]> => {
   const config = getGithubConfig();
-  if (!config) return [];
-
-  const content = await fetchFromGithub(config, 'data/apps.json');
-  if (content) {
-    const apps = JSON.parse(content) as AppItem[];
-    return apps.sort((a, b) => b.createdAt - a.createdAt);
+  
+  // If admin is logged in, fetch from GitHub API for real-time updates
+  if (config) {
+    try {
+      const content = await fetchFromGithub(config, 'public/data/apps.json');
+      if (content) {
+        const apps = JSON.parse(content) as AppItem[];
+        return apps.sort((a, b) => b.createdAt - a.createdAt);
+      }
+    } catch (e) {
+      console.error('GitHub fetch failed, falling back to public data', e);
+    }
   }
+
+  // For normal visitors, fetch from the deployed static files
+  const publicData = await fetchPublicData('data/apps.json');
+  if (publicData) {
+    return publicData.sort((a: AppItem, b: AppItem) => b.createdAt - a.createdAt);
+  }
+
   return [];
 };
 
@@ -50,13 +90,13 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
 
   // 1. Upload Image
   const imageExt = imageFile.name.split('.').pop();
-  const imagePath = `data/images/${appId}.${imageExt}`;
+  const imagePath = `public/data/images/${appId}.${imageExt}`;
   const imageBase64 = await fileToBase64(imageFile);
   await uploadToGithub(config, imagePath, imageBase64, `Upload image for app ${appId}`, true);
 
   // 2. Upload App File
   const fileExt = appFile.name.split('.').pop();
-  const filePath = `data/files/${appId}.${fileExt}`;
+  const filePath = `public/data/files/${appId}.${fileExt}`;
   const fileBase64 = await fileToBase64(appFile);
   await uploadToGithub(config, filePath, fileBase64, `Upload file for app ${appId}`, true);
 
@@ -78,7 +118,7 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
     apps.push(newApp);
   }
 
-  await uploadToGithub(config, 'data/apps.json', JSON.stringify(apps, null, 2), `Update apps.json with ${appId}`);
+  await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(apps, null, 2), `Update apps.json with ${appId}`);
 };
 
 export const deleteApp = async (id: string): Promise<void> => {
@@ -95,7 +135,7 @@ export const deleteApp = async (id: string): Promise<void> => {
 
     // Update JSON
     const updatedApps = apps.filter(a => a.id !== id);
-    await uploadToGithub(config, 'data/apps.json', JSON.stringify(updatedApps, null, 2), `Remove app ${id} from apps.json`);
+    await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Remove app ${id} from apps.json`);
   }
 };
 
@@ -106,7 +146,7 @@ export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPat
   let logoPath = '';
   if (logoFile) {
     const ext = logoFile.name.split('.').pop();
-    logoPath = `data/settings/logo.${ext}`;
+    logoPath = `public/data/settings/logo.${ext}`;
     const logoBase64 = await fileToBase64(logoFile);
     await uploadToGithub(config, logoPath, logoBase64, 'Update site logo', true);
   } else {
@@ -120,13 +160,19 @@ export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPat
     siteLogoPath: logoPath
   };
 
-  await uploadToGithub(config, 'data/settings.json', JSON.stringify(newSettings, null, 2), 'Update site settings');
+  await uploadToGithub(config, 'public/data/settings.json', JSON.stringify(newSettings, null, 2), 'Update site settings');
 };
 
 export const getSiteSettings = async (): Promise<SiteSettings | null> => {
   const config = getGithubConfig();
-  if (!config) return null;
+  
+  if (config) {
+    try {
+      const content = await fetchFromGithub(config, 'public/data/settings.json');
+      if (content) return JSON.parse(content);
+    } catch (e) {}
+  }
 
-  const content = await fetchFromGithub(config, 'data/settings.json');
-  return content ? JSON.parse(content) : null;
+  const publicData = await fetchPublicData('data/settings.json');
+  return publicData || null;
 };

@@ -1,26 +1,31 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getApps, AppItem } from '@/lib/db';
+import { getApps, AppItem, getSiteSettings, SiteSettings } from '@/lib/db';
 import Navbar from '@/components/Navbar';
 import AppCard from '@/components/AppCard';
 import { Download, Loader2, Search } from 'lucide-react';
 
 export default function Home() {
   const [apps, setApps] = useState<AppItem[]>([]);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadApps();
+    loadData();
   }, []);
 
-  const loadApps = async () => {
+  const loadData = async () => {
     try {
-      const data = await getApps();
-      setApps(data);
+      const [appsData, settingsData] = await Promise.all([
+        getApps(),
+        getSiteSettings()
+      ]);
+      setApps(appsData);
+      setSettings(settingsData);
     } catch (error) {
-      console.error('Failed to load apps:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
@@ -36,7 +41,9 @@ export default function Home() {
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 whitespace-nowrap">تطبيقات للشاشات</h1>
+          {settings?.siteName && (
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 whitespace-nowrap">{settings.siteName}</h1>
+          )}
           
           <div className="max-w-md mx-auto relative">
             <input

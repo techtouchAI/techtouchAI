@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { LayoutGrid, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getSiteSettings, SiteSettings } from '@/lib/db';
-import { getGithubConfig } from '@/lib/github';
+import { getSiteSettings, SiteSettings, getPublicUrl } from '@/lib/db';
 
 export default function Navbar() {
   const [isDark, setIsDark] = useState(false);
@@ -29,9 +28,9 @@ export default function Navbar() {
       try {
         const data = await getSiteSettings();
         setSettings(data);
-        const config = getGithubConfig();
-        if (data?.siteLogoPath && config) {
-          setLogoUrl(`https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${data.siteLogoPath}`);
+        if (data?.siteLogoPath) {
+          const timestamp = new Date().getTime();
+          setLogoUrl(`${getPublicUrl(data.siteLogoPath)}?t=${timestamp}`);
         }
       } catch (error) {
         console.error('Failed to load site settings:', error);
@@ -64,8 +63,8 @@ export default function Navbar() {
               ) : (
                 <LayoutGrid className="w-6 h-6" />
               )}
-              {settings?.siteName !== '' && (
-                <span>{settings?.siteName || 'تطبيقات للشاشات'}</span>
+              {settings?.siteName && (
+                <span>{settings.siteName}</span>
               )}
             </Link>
           </div>

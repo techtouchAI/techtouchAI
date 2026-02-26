@@ -1,7 +1,6 @@
 'use client';
 
-import { AppItem } from '@/lib/db';
-import { getGithubConfig } from '@/lib/github';
+import { AppItem, getPublicUrl } from '@/lib/db';
 import { Download } from 'lucide-react';
 
 interface AppCardProps {
@@ -9,14 +8,8 @@ interface AppCardProps {
 }
 
 export default function AppCard({ app }: AppCardProps) {
-  const config = getGithubConfig();
-
   const handleDownload = () => {
-    if (!config) return;
-    
-    // Direct download link from GitHub raw content
-    const url = `https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${app.filePath}`;
-    
+    const url = getPublicUrl(app.filePath);
     const a = document.createElement('a');
     a.href = url;
     a.download = app.fileName;
@@ -28,7 +21,7 @@ export default function AppCard({ app }: AppCardProps) {
 
   // Add timestamp to bypass browser cache
   const timestamp = new Date().getTime();
-  const imageUrl = config ? `https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${app.imagePath}?t=${timestamp}` : '';
+  const imageUrl = `${getPublicUrl(app.imagePath)}?t=${timestamp}`;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">

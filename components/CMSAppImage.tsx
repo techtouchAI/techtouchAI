@@ -1,18 +1,11 @@
 'use client';
 
-import { AppItem } from '@/lib/db';
-import { getGithubConfig } from '@/lib/github';
+import { AppItem, getPublicUrl } from '@/lib/db';
 
 export function CMSAppImage({ app }: { app: AppItem }) {
-  const config = getGithubConfig();
-  
-  if (!config) {
-    return <div className="w-full h-full bg-gray-100 dark:bg-gray-800 animate-pulse" />;
-  }
-
   // Add timestamp to bypass browser cache
   const timestamp = new Date().getTime();
-  const imageUrl = `https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${app.imagePath}?t=${timestamp}`;
+  const imageUrl = `${getPublicUrl(app.imagePath)}?t=${timestamp}`;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
