@@ -93,10 +93,16 @@ export const fetchFromGithub = async (config: GithubConfig, path: string) => {
   const octokit = new Octokit({ auth: config.token });
 
   try {
+    // Add a timestamp to bypass GitHub API caching
+    const timestamp = new Date().getTime();
     const { data } = await octokit.rest.repos.getContent({
       owner: config.username,
       repo: config.repo,
       path,
+      headers: {
+        'If-None-Match': '', // Force bypass cache
+      },
+      ref: `main?t=${timestamp}` // Try to force fresh fetch
     });
 
     if (!Array.isArray(data) && data.type === 'file' && data.content) {

@@ -26,7 +26,9 @@ export default function AppCard({ app }: AppCardProps) {
     document.body.removeChild(a);
   };
 
-  const imageUrl = config ? `https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${app.imagePath}` : '';
+  // Add timestamp to bypass browser cache
+  const timestamp = new Date().getTime();
+  const imageUrl = config ? `https://raw.githubusercontent.com/${config.username}/${config.repo}/main/${app.imagePath}?t=${timestamp}` : '';
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
