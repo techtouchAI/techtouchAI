@@ -18,19 +18,6 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      // Try to load from local storage first for instant display
-      const cachedApps = localStorage.getItem('cached_apps');
-      const cachedSettings = localStorage.getItem('cached_settings');
-      
-      if (cachedApps) {
-        setApps(JSON.parse(cachedApps));
-        setLoading(false); // Hide loader if we have cached apps
-      }
-      if (cachedSettings) {
-        setSettings(JSON.parse(cachedSettings));
-      }
-
-      // Fetch fresh data in the background
       const [appsData, settingsData] = await Promise.all([
         getApps(),
         getSiteSettings()
@@ -38,12 +25,6 @@ export default function Home() {
       
       setApps(appsData);
       setSettings(settingsData);
-      
-      // Update cache
-      localStorage.setItem('cached_apps', JSON.stringify(appsData));
-      if (settingsData) {
-        localStorage.setItem('cached_settings', JSON.stringify(settingsData));
-      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -61,10 +42,6 @@ export default function Home() {
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-10 text-center">
-          {settings?.siteName && (
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 whitespace-nowrap">{settings.siteName}</h1>
-          )}
-          
           <div className="max-w-md mx-auto relative">
             <input
               type="text"

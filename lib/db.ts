@@ -1,12 +1,18 @@
 import { getGithubConfig, uploadToGithub, fetchFromGithub, deleteFromGithub } from './github';
 
+export interface AppFile {
+  path: string;
+  name: string;
+}
+
 export interface AppItem {
   id: string;
   name: string;
   description: string;
   imagePath: string;
-  filePath: string;
-  fileName: string;
+  filePath?: string;
+  fileName?: string;
+  files?: AppFile[];
   createdAt: number;
 }
 
@@ -94,7 +100,7 @@ export const getApps = async (): Promise<AppItem[]> => {
   return [];
 };
 
-export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath'>, imageFile: File, appFile: File, id?: string): Promise<void> => {
+export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File, appFiles: File[], id?: string): Promise<void> => {
   const config = getGithubConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
@@ -107,11 +113,16 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
   const imageBase64 = await fileToBase64(imageFile);
   await uploadToGithub(config, imagePath, imageBase64, `Upload image for app ${appId}`, true);
 
-  // 2. Upload App File
-  const fileExt = appFile.name.split('.').pop();
-  const filePath = `public/data/files/${appId}.${fileExt}`;
-  const fileBase64 = await fileToBase64(appFile);
-  await uploadToGithub(config, filePath, fileBase64, `Upload file for app ${appId}`, true);
+  // 2. Upload App Files
+  const uploadedFiles: AppFile[] = [];
+  for (let i = 0; i < appFiles.length; i++) {
+    const file = appFiles[i];
+    const fileExt = file.name.split('.').pop();
+    const filePath = `public/data/files/${appId}_${i}_${Date.now()}.${fileExt}`;
+    const fileBase64 = await fileToBase64(file);
+    await uploadToGithub(config, filePath, fileBase64, `Upload file ${file.name} for app ${appId}`, true);
+    uploadedFiles.push({ path: filePath, name: file.name });
+  }
 
   // 3. Update apps.json
   const apps = await getApps();
@@ -120,8 +131,7 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
     id: appId,
     createdAt: timestamp,
     imagePath,
-    filePath,
-    fileName: appFile.name
+    files: uploadedFiles
   };
 
   const existingIndex = apps.findIndex(a => a.id === appId);
@@ -143,7 +153,14 @@ export const deleteApp = async (id: string): Promise<void> => {
   
   if (appToDelete) {
     try { await deleteFromGithub(config, appToDelete.imagePath, `Delete image for app ${id}`); } catch (e) {}
-    try { await deleteFromGithub(config, appToDelete.filePath, `Delete file for app ${id}`); } catch (e) {}
+    if (appToDelete.filePath) {
+      try { await deleteFromGithub(config, appToDelete.filePath, `Delete file for app ${id}`); } catch (e) {}
+    }
+    if (appToDelete.files) {
+      for (const file of appToDelete.files) {
+        try { await deleteFromGithub(config, file.path, `Delete file for app ${id}`); } catch (e) {}
+      }
+    }
 
     const updatedApps = apps.filter(a => a.id !== id);
     await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Remove app ${id} from apps.json`);

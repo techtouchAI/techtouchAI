@@ -18,7 +18,7 @@ export default function CMS() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [appFile, setAppFile] = useState<File | null>(null);
+  const [appFiles, setAppFiles] = useState<File[]>([]);
   
   // Settings Form State
   const [siteName, setSiteName] = useState('');
@@ -101,20 +101,20 @@ export default function CMS() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
-    if (!editingId && (!imageFile || !appFile)) {
-      alert('يرجى اختيار صورة وملف التطبيق');
+    if (!editingId && (!imageFile || appFiles.length === 0)) {
+      alert('يرجى اختيار صورة وملف واحد على الأقل للتطبيق');
       return;
     }
 
     setSaving(true);
     try {
-      if (!imageFile || !appFile) {
-        alert('في هذه النسخة، يرجى إعادة رفع الصورة والملف عند التعديل');
+      if (!imageFile || appFiles.length === 0) {
+        alert('في هذه النسخة، يرجى إعادة رفع الصورة والملفات عند التعديل');
         setSaving(false);
         return;
       }
 
-      await saveApp({ name, description, fileName: appFile.name }, imageFile, appFile, editingId || undefined);
+      await saveApp({ name, description }, imageFile, appFiles, editingId || undefined);
       await loadData();
       resetForm();
     } catch (error) {
@@ -130,7 +130,7 @@ export default function CMS() {
     setName(app.name);
     setDescription(app.description || '');
     setImageFile(null);
-    setAppFile(null);
+    setAppFiles([]);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -151,7 +151,7 @@ export default function CMS() {
     setName('');
     setDescription('');
     setImageFile(null);
-    setAppFile(null);
+    setAppFiles([]);
     if (imageInputRef.current) imageInputRef.current.value = '';
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -372,24 +372,34 @@ export default function CMS() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ملف التطبيق *</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ملفات التطبيق *</label>
                     <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-700 border-dashed rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors cursor-pointer bg-gray-50 dark:bg-gray-800" onClick={() => fileInputRef.current?.click()}>
                       <div className="space-y-1 text-center">
                         <FileIcon className="mx-auto h-12 w-12 text-gray-400" />
                         <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
                           <span className="relative rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                            {appFile ? appFile.name : 'اختر ملف'}
+                            {appFiles.length > 0 ? `${appFiles.length} ملفات محددة` : 'اختر ملفات'}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">APK, ZIP, RAR, EXE</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">يمكنك اختيار أكثر من ملف (APK, ZIP, RAR, EXE)</p>
                       </div>
                     </div>
+                    {appFiles.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {appFiles.map((f, i) => (
+                          <div key={i} className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg truncate" dir="ltr">
+                            {f.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <input
                       type="file"
+                      multiple
                       className="hidden"
                       ref={fileInputRef}
                       onChange={(e) => {
-                        if (e.target.files?.[0]) setAppFile(e.target.files[0]);
+                        if (e.target.files) setAppFiles(Array.from(e.target.files));
                       }}
                     />
                   </div>
@@ -442,7 +452,9 @@ export default function CMS() {
                         </div>
                         <div className="flex-grow min-w-0">
                           <h3 className="font-bold text-gray-900 dark:text-white truncate">{app.name}</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{app.fileName}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                            {app.files ? `${app.files.length} ملفات` : app.fileName}
+                          </p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <button
