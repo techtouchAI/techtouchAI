@@ -4,8 +4,8 @@ export interface AppItem {
   id: string;
   name: string;
   description: string;
-  imagePath: string; // Changed from Blob to string path
-  filePath: string;  // Changed from Blob to string path
+  imagePath: string;
+  filePath: string;
   fileName: string;
   createdAt: number;
 }
@@ -22,30 +22,27 @@ const fileToBase64 = (file: File): Promise<string> => {
     reader.readAsDataURL(file);
     reader.onload = () => {
       const result = reader.result as string;
-      // Remove data:image/png;base64, prefix
       resolve(result.split(',')[1]);
     };
     reader.onerror = error => reject(error);
   });
 };
 
-export const getPublicUrl = (path: string) => {
-  if (!path) return '';
-  const cleanPath = path.replace(/^public\//, '');
-  if (typeof window !== 'undefined') {
-    const segments = window.location.pathname.split('/');
-    if (segments.length > 1 && segments[1] !== '' && segments[1] !== 'cms') {
-      return `/${segments[1]}/${cleanPath}`;
-    }
-  }
-  return `/${cleanPath}`;
+// Get raw GitHub URL for public access
+export const getRawGithubUrl = (path: string) => {
+  // We need to know the repo owner and name. 
+  // Since visitors don't have the config, we should hardcode it or fetch it from a known location.
+  // For now, we assume the repo is techtouchAI/techtouchAI based on the context.
+  const owner = 'techtouchAI';
+  const repo = 'techtouchAI';
+  const timestamp = new Date().getTime();
+  return `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}?t=${timestamp}`;
 };
 
 export const fetchPublicData = async (path: string) => {
-  const timestamp = new Date().getTime();
-  const url = `${getPublicUrl('public/' + path)}?t=${timestamp}`;
+  const url = getRawGithubUrl(path);
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-store' });
     if (res.ok) {
       const text = await res.text();
       return text ? JSON.parse(text) : null;
@@ -59,7 +56,7 @@ export const fetchPublicData = async (path: string) => {
 export const getApps = async (): Promise<AppItem[]> => {
   const config = getGithubConfig();
   
-  // If admin is logged in, fetch from GitHub API for real-time updates
+  // If admin is logged in, fetch from GitHub API
   if (config) {
     try {
       const content = await fetchFromGithub(config, 'public/data/apps.json');
@@ -72,8 +69,8 @@ export const getApps = async (): Promise<AppItem[]> => {
     }
   }
 
-  // For normal visitors, fetch from the deployed static files
-  const publicData = await fetchPublicData('data/apps.json');
+  // For normal visitors, fetch directly from raw.githubusercontent.com
+  const publicData = await fetchPublicData('public/data/apps.json');
   if (publicData) {
     return publicData.sort((a: AppItem, b: AppItem) => b.createdAt - a.createdAt);
   }
@@ -129,11 +126,9 @@ export const deleteApp = async (id: string): Promise<void> => {
   const appToDelete = apps.find(a => a.id === id);
   
   if (appToDelete) {
-    // Delete files
     try { await deleteFromGithub(config, appToDelete.imagePath, `Delete image for app ${id}`); } catch (e) {}
     try { await deleteFromGithub(config, appToDelete.filePath, `Delete file for app ${id}`); } catch (e) {}
 
-    // Update JSON
     const updatedApps = apps.filter(a => a.id !== id);
     await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Remove app ${id} from apps.json`);
   }
@@ -150,7 +145,6 @@ export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPat
     const logoBase64 = await fileToBase64(logoFile);
     await uploadToGithub(config, logoPath, logoBase64, 'Update site logo', true);
   } else {
-    // Keep existing logo path if not updated
     const existingSettings = await getSiteSettings();
     logoPath = existingSettings?.siteLogoPath || '';
   }
@@ -173,6 +167,6 @@ export const getSiteSettings = async (): Promise<SiteSettings | null> => {
     } catch (e) {}
   }
 
-  const publicData = await fetchPublicData('data/settings.json');
+  const publicData = await fetchPublicData('public/data/settings.json');
   return publicData || null;
 };

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { LayoutGrid, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getSiteSettings, SiteSettings, getPublicUrl } from '@/lib/db';
+import { getSiteSettings, SiteSettings, getRawGithubUrl } from '@/lib/db';
 
 export default function Navbar() {
   const [isDark, setIsDark] = useState(false);
@@ -29,8 +29,7 @@ export default function Navbar() {
         const data = await getSiteSettings();
         setSettings(data);
         if (data?.siteLogoPath) {
-          const timestamp = new Date().getTime();
-          setLogoUrl(`${getPublicUrl(data.siteLogoPath)}?t=${timestamp}`);
+          setLogoUrl(getRawGithubUrl(data.siteLogoPath));
         }
       } catch (error) {
         console.error('Failed to load site settings:', error);

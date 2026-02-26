@@ -1,6 +1,6 @@
 'use client';
 
-import { AppItem, getPublicUrl } from '@/lib/db';
+import { AppItem, getRawGithubUrl } from '@/lib/db';
 import { Download } from 'lucide-react';
 
 interface AppCardProps {
@@ -9,7 +9,7 @@ interface AppCardProps {
 
 export default function AppCard({ app }: AppCardProps) {
   const handleDownload = () => {
-    const url = getPublicUrl(app.filePath);
+    const url = getRawGithubUrl(app.filePath);
     const a = document.createElement('a');
     a.href = url;
     a.download = app.fileName;
@@ -19,9 +19,7 @@ export default function AppCard({ app }: AppCardProps) {
     document.body.removeChild(a);
   };
 
-  // Add timestamp to bypass browser cache
-  const timestamp = new Date().getTime();
-  const imageUrl = `${getPublicUrl(app.imagePath)}?t=${timestamp}`;
+  const imageUrl = getRawGithubUrl(app.imagePath);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">

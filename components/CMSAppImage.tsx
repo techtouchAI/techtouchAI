@@ -1,11 +1,9 @@
 'use client';
 
-import { AppItem, getPublicUrl } from '@/lib/db';
+import { AppItem, getRawGithubUrl } from '@/lib/db';
 
 export function CMSAppImage({ app }: { app: AppItem }) {
-  // Add timestamp to bypass browser cache
-  const timestamp = new Date().getTime();
-  const imageUrl = `${getPublicUrl(app.imagePath)}?t=${timestamp}`;
+  const imageUrl = getRawGithubUrl(app.imagePath);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
