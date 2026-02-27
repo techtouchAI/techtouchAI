@@ -167,7 +167,7 @@ export const getApps = async (): Promise<AppItem[]> => {
   return [];
 };
 
-export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File, appFiles: File[], id?: string): Promise<AppItem[]> => {
+export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File, appFiles: { file: File, customName: string }[], id?: string): Promise<AppItem[]> => {
   const config = getGithubConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
@@ -183,12 +183,12 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
   // 2. Upload App Files
   const uploadedFiles: AppFile[] = [];
   for (let i = 0; i < appFiles.length; i++) {
-    const file = appFiles[i];
+    const { file, customName } = appFiles[i];
     const fileExt = file.name.split('.').pop();
     const filePath = `public/data/files/${appId}_${i}_${Date.now()}.${fileExt}`;
     const fileBase64 = await fileToBase64(file);
     await uploadToGithub(config, filePath, fileBase64, `Upload file ${file.name} for app ${appId}`, true);
-    uploadedFiles.push({ path: filePath, name: file.name });
+    uploadedFiles.push({ path: filePath, name: customName || file.name });
   }
 
   // 3. Update apps.json

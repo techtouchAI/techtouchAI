@@ -18,7 +18,7 @@ export default function CMS() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [appFiles, setAppFiles] = useState<File[]>([]);
+  const [appFiles, setAppFiles] = useState<{ file: File, customName: string }[]>([]);
   
   // Settings Form State
   const [siteName, setSiteName] = useState('');
@@ -386,10 +386,21 @@ export default function CMS() {
                       </div>
                     </div>
                     {appFiles.length > 0 && (
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 space-y-3">
                         {appFiles.map((f, i) => (
-                          <div key={i} className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg truncate" dir="ltr">
-                            {f.name}
+                          <div key={i} className="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 truncate" dir="ltr">{f.file.name}</div>
+                            <input
+                              type="text"
+                              value={f.customName}
+                              onChange={(e) => {
+                                const newFiles = [...appFiles];
+                                newFiles[i].customName = e.target.value;
+                                setAppFiles(newFiles);
+                              }}
+                              className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm"
+                              placeholder="اسم الملف (مثال: نسخة للاندرويد)"
+                            />
                           </div>
                         ))}
                       </div>
@@ -400,7 +411,10 @@ export default function CMS() {
                       className="hidden"
                       ref={fileInputRef}
                       onChange={(e) => {
-                        if (e.target.files) setAppFiles(Array.from(e.target.files));
+                        if (e.target.files) {
+                          const newFiles = Array.from(e.target.files).map(f => ({ file: f, customName: f.name }));
+                          setAppFiles(newFiles);
+                        }
                       }}
                     />
                   </div>
