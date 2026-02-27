@@ -13,7 +13,6 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
   const imageUrl = getRawGithubUrl(app.imagePath);
 
   const files = app.files || (app.filePath && app.fileName ? [{ path: app.filePath, name: app.fileName }] : []);
-  const firstFile = files[0];
 
   const handleDownload = async (e: React.MouseEvent, path: string, name: string) => {
     e.preventDefault();
@@ -66,16 +65,18 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
             {app.description}
           </p>
         )}
-        <div className="flex items-center gap-2 mt-auto">
-          {isSingleApp && firstFile && (
+        <div className="flex items-center gap-1.5 mt-auto overflow-x-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {files.map((file, idx) => (
             <button 
-              onClick={(e) => handleDownload(e, firstFile.path, firstFile.name)}
-              className="mr-auto flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-md text-[10px] font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              key={idx}
+              onClick={(e) => handleDownload(e, file.path, file.name)}
+              className="flex-shrink-0 flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-md text-[9px] sm:text-[10px] font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              title={file.name}
             >
-              <Download className="w-3 h-3" />
-              تحميل
+              <Download className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="max-w-[50px] sm:max-w-[70px] truncate" dir="ltr">{file.name}</span>
             </button>
-          )}
+          ))}
         </div>
       </div>
     </Link>
