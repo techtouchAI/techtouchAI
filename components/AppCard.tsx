@@ -43,8 +43,8 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
   };
 
   return (
-    <Link href={`/app?id=${app.id}`} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-row items-center p-3 sm:p-4 gap-4">
-      <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800 flex-shrink-0">
+    <Link href={`/app?id=${app.id}`} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-row items-center p-2.5 sm:p-3 gap-3">
+      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800 flex-shrink-0">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -62,30 +62,30 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-indigo-200 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
+            <div className="w-5 h-5 border-2 border-indigo-200 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
           </div>
         )}
       </div>
-      <div className="flex-grow flex flex-col justify-center min-w-0 py-1">
-        <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-1 mb-1">
+      <div className="flex-grow flex flex-col justify-center min-w-0 py-0.5">
+        <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-1 mb-0.5">
           {app.name}
         </h3>
         {app.description && (
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
+          <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mb-1.5 leading-relaxed">
             {app.description}
           </p>
         )}
-        <div className="flex items-center gap-3 mt-auto">
-          <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
-            <Eye className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-2 mt-auto">
+          <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500">
+            <Eye className="w-3 h-3" />
             <span>{views !== null ? views : '...'} مشاهدة</span>
           </div>
           {isSingleApp && firstFile && (
             <button 
               onClick={(e) => handleDownload(e, firstFile.path, firstFile.name)}
-              className="mr-auto flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              className="mr-auto flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-md text-[10px] font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3 h-3" />
               تحميل
             </button>
           )}
