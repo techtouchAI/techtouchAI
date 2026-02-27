@@ -4,16 +4,14 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getApps, AppItem, getRawGithubUrl } from '@/lib/db';
 import Navbar from '@/components/Navbar';
-import { Download, Loader2, ArrowRight, File as FileIcon, Eye } from 'lucide-react';
+import { Download, Loader2, ArrowRight, File as FileIcon } from 'lucide-react';
 import Link from 'next/link';
-import { incrementViews } from '@/lib/counter';
 
 function AppDetailsContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   const [app, setApp] = useState<AppItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [views, setViews] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) {
@@ -25,12 +23,6 @@ function AppDetailsContent() {
       const found = apps.find(a => a.id === id);
       setApp(found || null);
       setLoading(false);
-      
-      if (found) {
-        incrementViews(found.id).then(count => {
-          if (count !== null) setViews(count);
-        });
-      }
     });
   }, [id]);
 
@@ -99,10 +91,6 @@ function AppDetailsContent() {
           <div className="p-6 sm:p-8 md:w-2/3 flex flex-col">
             <div className="flex items-start justify-between mb-4">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{app.name}</h1>
-              <div className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full">
-                <Eye className="w-4 h-4" />
-                <span>{views !== null ? views : '...'} مشاهدة</span>
-              </div>
             </div>
             {app.description && (
               <p className="text-gray-600 dark:text-gray-300 mb-8 whitespace-pre-wrap leading-relaxed">

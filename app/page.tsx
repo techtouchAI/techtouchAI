@@ -55,13 +55,14 @@ export default function Home() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col animate-pulse">
-                <div className="aspect-square bg-gray-200 dark:bg-gray-800 w-full"></div>
-                <div className="p-4 flex flex-col gap-2">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4 mx-auto"></div>
-                  <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/2 mx-auto"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-row items-center p-2.5 sm:p-3 gap-3 animate-pulse">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gray-200 dark:bg-gray-800 flex-shrink-0"></div>
+                <div className="flex-grow flex flex-col gap-2 py-0.5">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4"></div>
+                  <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
+                  <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded w-5/6"></div>
                 </div>
               </div>
             ))}

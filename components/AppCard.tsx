@@ -1,10 +1,8 @@
 'use client';
 
 import { AppItem, getRawGithubUrl } from '@/lib/db';
-import { Download, Eye } from 'lucide-react';
+import { Download } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { getViews } from '@/lib/counter';
 
 interface AppCardProps {
   app: AppItem;
@@ -13,13 +11,6 @@ interface AppCardProps {
 
 export default function AppCard({ app, isSingleApp }: AppCardProps) {
   const imageUrl = getRawGithubUrl(app.imagePath);
-  const [views, setViews] = useState<number | null>(null);
-
-  useEffect(() => {
-    getViews(app.id).then(count => {
-      if (count !== null) setViews(count);
-    });
-  }, [app.id]);
 
   const files = app.files || (app.filePath && app.fileName ? [{ path: app.filePath, name: app.fileName }] : []);
   const firstFile = files[0];
@@ -76,10 +67,6 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
           </p>
         )}
         <div className="flex items-center gap-2 mt-auto">
-          <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500">
-            <Eye className="w-3 h-3" />
-            <span>{views !== null ? views : '...'} مشاهدة</span>
-          </div>
           {isSingleApp && firstFile && (
             <button 
               onClick={(e) => handleDownload(e, firstFile.path, firstFile.name)}
