@@ -8,9 +8,10 @@ import { getViews } from '@/lib/counter';
 
 interface AppCardProps {
   app: AppItem;
+  isSingleApp?: boolean;
 }
 
-export default function AppCard({ app }: AppCardProps) {
+export default function AppCard({ app, isSingleApp }: AppCardProps) {
   const imageUrl = getRawGithubUrl(app.imagePath);
   const [views, setViews] = useState<number | null>(null);
 
@@ -20,9 +21,30 @@ export default function AppCard({ app }: AppCardProps) {
     });
   }, [app.id]);
 
+  const files = app.files || (app.filePath && app.fileName ? [{ path: app.filePath, name: app.fileName }] : []);
+  const firstFile = files[0];
+
+  const handleDownload = async (e: React.MouseEvent, path: string, name: string) => {
+    e.preventDefault();
+    let url = getRawGithubUrl(path, 'main');
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      if (!res.ok && res.status === 404) {
+        url = getRawGithubUrl(path, 'master');
+      }
+    } catch (err) {}
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   return (
-    <Link href={`/app?id=${app.id}`} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
-      <div className="relative aspect-square overflow-hidden bg-gray-50 dark:bg-gray-800 flex-shrink-0">
+    <Link href={`/app?id=${app.id}`} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-row items-center p-3 sm:p-4 gap-4">
+      <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800 flex-shrink-0">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -43,24 +65,30 @@ export default function AppCard({ app }: AppCardProps) {
             <div className="w-8 h-8 border-4 border-indigo-200 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
           </div>
         )}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 font-medium text-sm text-indigo-600 dark:text-indigo-400">
-            عرض التفاصيل
-          </div>
-        </div>
       </div>
-      <div className="p-3 sm:p-4 flex-grow flex flex-col justify-center">
-        <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base line-clamp-1 mb-1 text-center">
+      <div className="flex-grow flex flex-col justify-center min-w-0 py-1">
+        <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-1 mb-1">
           {app.name}
         </h3>
         {app.description && (
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2 text-center mb-2">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
             {app.description}
           </p>
         )}
-        <div className="flex items-center justify-center gap-1 mt-auto text-xs text-gray-400 dark:text-gray-500">
-          <Eye className="w-3.5 h-3.5" />
-          <span>{views !== null ? views : '...'} مشاهدة</span>
+        <div className="flex items-center gap-3 mt-auto">
+          <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+            <Eye className="w-3.5 h-3.5" />
+            <span>{views !== null ? views : '...'} مشاهدة</span>
+          </div>
+          {isSingleApp && firstFile && (
+            <button 
+              onClick={(e) => handleDownload(e, firstFile.path, firstFile.name)}
+              className="mr-auto flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              تحميل
+            </button>
+          )}
         </div>
       </div>
     </Link>

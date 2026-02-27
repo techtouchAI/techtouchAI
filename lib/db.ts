@@ -81,9 +81,7 @@ export const fetchPublicData = async (path: string) => {
   try {
     const apiRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?t=${timestamp}`, {
       headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
+        'Accept': 'application/vnd.github.v3+json'
       },
       cache: 'no-store'
     });
@@ -102,7 +100,7 @@ export const fetchPublicData = async (path: string) => {
       }
     }
   } catch (e) {
-    console.error('GitHub API fallback failed', e);
+    // Suppress error to avoid console clutter, it will fallback automatically
   }
 
   // 2. Fallback: GitHub Pages Relative Path (Updates after build 1-2 mins)
@@ -118,7 +116,7 @@ export const fetchPublicData = async (path: string) => {
       }
     }
   } catch (e) {
-    console.error(`Failed to fetch relative data for ${path}`, e);
+    // Suppress error to avoid console clutter
   }
 
   // 3. Fallback: Raw GitHub Content (Updates after 5 mins)
@@ -136,7 +134,7 @@ export const fetchPublicData = async (path: string) => {
       return text ? JSON.parse(text) : null;
     }
   } catch (e) {
-    console.error(`Failed to fetch public data for ${path}`, e);
+    // Suppress error
   }
   return null;
 };

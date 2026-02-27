@@ -80,9 +80,9 @@ export default function Home() {
             <p className="text-gray-500 dark:text-gray-400">لم يتم العثور على تطبيقات تطابق بحثك</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className={`grid gap-4 sm:gap-6 ${filteredApps.length === 1 ? 'grid-cols-1 max-w-2xl mx-auto' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
             {filteredApps.map((app) => (
-              <AppCard key={app.id} app={app} />
+              <AppCard key={app.id} app={app} isSingleApp={filteredApps.length === 1} />
             ))}
           </div>
         )}

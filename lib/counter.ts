@@ -9,7 +9,7 @@ export const incrementViews = async (appId: string): Promise<number | null> => {
       return data.count;
     }
   } catch (e) {
-    console.error('Failed to increment views', e);
+    // Suppress error
   }
   return null;
 };
@@ -22,7 +22,7 @@ export const getViews = async (appId: string): Promise<number | null> => {
       return data.count;
     }
   } catch (e) {
-    console.error('Failed to get views', e);
+    // Suppress error
   }
   return null;
 };
