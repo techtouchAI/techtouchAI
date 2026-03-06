@@ -11,26 +11,5 @@
         "name": "KiraTV.apk"
       }
     ]
-  },
-  {
-    "name": "رياضه",
-    "description": "قنوات افلام مسلسلات",
-    "id": "1772228339365",
-    "createdAt": 1772228339365,
-    "imagePath": "public/data/images/1772228339365.webp",
-    "files": [
-      {
-        "path": "public/data/files/1772228339365_0_1772228341419.apk",
-        "name": "TDM_ المشغل"
-      },
-      {
-        "path": "public/data/files/1772228339365_1_1772228363464.apk",
-        "name": "Drama_Ramadan"
-      },
-      {
-        "path": "public/data/files/1772228339365_2_1772228368562.apk",
-        "name": "iptv_pro.apk"
-      }
-    ]
   }
 ]
