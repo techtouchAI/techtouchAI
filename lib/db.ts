@@ -167,26 +167,32 @@ export const getApps = async (): Promise<AppItem[]> => {
   return [];
 };
 
-export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File, appFiles: { file: File, customName: string }[], id?: string, onProgress?: (progress: number) => void): Promise<AppItem[]> => {
+export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File | null, appFiles: { file: File, customName: string }[], id?: string, onProgress?: (progress: number) => void): Promise<AppItem[]> => {
   const config = getGithubConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
   const appId = id || Date.now().toString();
   const timestamp = Date.now();
+  const apps = await getApps();
+  const existingApp = apps.find(a => a.id === appId);
 
-  // 1. Upload Image
-  const imageExt = imageFile.name.split('.').pop();
-  const imagePath = `public/data/images/${appId}.${imageExt}`;
-  const imageBase64 = await fileToBase64(imageFile);
-  await uploadToGithub(config, imagePath, imageBase64, `Upload image for app ${appId}`, true);
+  // 1. Upload Image (only if provided)
+  let imagePath = existingApp ? existingApp.imagePath : '';
+  if (imageFile) {
+    const imageExt = imageFile.name.split('.').pop();
+    imagePath = `public/data/images/${appId}.${imageExt}`;
+    const imageBase64 = await fileToBase64(imageFile);
+    await uploadToGithub(config, imagePath, imageBase64, `Upload image for app ${appId}`, true);
+  }
 
-  // 2. Upload App Files via Releases API
-  const uploadedFiles: AppFile[] = [];
+  // 2. Upload App Files via Releases API (only if provided)
+  let uploadedFiles: AppFile[] = existingApp ? (existingApp.files || []) : [];
   if (appFiles.length > 0) {
     try {
       const releaseTag = `app-${appId}`;
       const release = await createRelease(config, releaseTag, `Assets for ${app.name}`);
       
+      const newUploadedFiles: AppFile[] = [];
       for (let i = 0; i < appFiles.length; i++) {
         const { file, customName } = appFiles[i];
         const fileExt = file.name.split('.').pop();
@@ -199,24 +205,20 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
             onProgress(baseProgress + fileProgress);
           }
         });
-        uploadedFiles.push({ path: asset.browser_download_url, name: customName || file.name });
+        newUploadedFiles.push({ path: asset.browser_download_url, name: customName || file.name });
       }
+      uploadedFiles = newUploadedFiles;
     } catch (error: any) {
       console.error("Error uploading release assets:", error);
-      // Try to clean up the image if this is a new app
-      if (!id) {
-        try { await deleteFromGithub(config, imagePath, `Cleanup image for failed app ${appId}`); } catch (e) {}
-      }
-      throw new Error(error.message || "فشل في رفع ملفات التطبيق. تأكد من صلاحيات Token وأن حجم الملف مسموح.");
+      throw new Error(error.message || "فشل في رفع ملفات التطبيق.");
     }
   }
 
   // 3. Update apps.json
-  const apps = await getApps();
   const newApp: AppItem = {
     ...app,
     id: appId,
-    createdAt: timestamp,
+    createdAt: existingApp ? existingApp.createdAt : timestamp,
     imagePath,
     files: uploadedFiles
   };

@@ -111,12 +111,6 @@ export default function CMS() {
     setSaving(true);
     setUploadProgress(0);
     try {
-      if (!imageFile || appFiles.length === 0) {
-        alert('في هذه النسخة، يرجى إعادة رفع الصورة والملفات عند التعديل');
-        setSaving(false);
-        return;
-      }
-
       const updatedApps = await saveApp(
         { name, description }, 
         imageFile, 
@@ -126,6 +120,7 @@ export default function CMS() {
       );
       setApps(updatedApps);
       resetForm();
+      alert('تم حفظ التطبيق ونشره بنجاح! سيظهر على الموقع خلال لحظات.');
     } catch (error: any) {
       console.error('Failed to save app:', error);
       alert(error.message || 'حدث خطأ أثناء الحفظ');
@@ -246,7 +241,8 @@ export default function CMS() {
                   dir="ltr"
                 />
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  احصل على Token من إعدادات حسابك في GitHub (Developer settings &gt; Personal access tokens). تأكد من إعطائه صلاحية `repo`.
+                  احصل على Token من إعدادات حسابك في GitHub (Developer settings &gt; Personal access tokens &gt; Tokens Classic). 
+                  <strong className="text-indigo-600 dark:text-indigo-400 block mt-1">يجب اختيار صلاحية `repo` (Full control of private repositories) لضمان عمل الرفع بشكل مطلق وبدون قيود.</strong>
                 </p>
               </div>
 
@@ -376,7 +372,15 @@ export default function CMS() {
                       className="hidden"
                       ref={imageInputRef}
                       onChange={(e) => {
-                        if (e.target.files?.[0]) setImageFile(e.target.files[0]);
+                        if (e.target.files?.[0]) {
+                          const file = e.target.files[0];
+                          if (file.size > 10 * 1024 * 1024) {
+                            alert('حجم الصورة كبير جداً (أكثر من 10MB). يرجى اختيار صورة أصغر لضمان سرعة الرفع.');
+                            e.target.value = '';
+                            return;
+                          }
+                          setImageFile(file);
+                        }
                       }}
                     />
                   </div>
@@ -421,7 +425,12 @@ export default function CMS() {
                       ref={fileInputRef}
                       onChange={(e) => {
                         if (e.target.files) {
-                          const newFiles = Array.from(e.target.files).map(f => ({ file: f, customName: f.name }));
+                          const files = Array.from(e.target.files);
+                          const largeFiles = files.filter(f => f.size > 100 * 1024 * 1024);
+                          if (largeFiles.length > 0) {
+                            alert('لقد اخترت ملفات كبيرة جداً (أكثر من 100MB). الرفع قد يستغرق وقتاً طويلاً، يرجى التأكد من عدم إغلاق الصفحة واستقرار الإنترنت لضمان نجاح العملية.');
+                          }
+                          const newFiles = files.map(f => ({ file: f, customName: f.name }));
                           setAppFiles(newFiles);
                         }
                       }}

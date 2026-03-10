@@ -73,9 +73,16 @@ export const uploadToGithub = async (
     });
 
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('GitHub API Error:', error);
-    throw error;
+    if (error.status === 404) {
+      throw new Error(`خطأ 404 (المستودع غير موجود): تأكد من صحة اسم المستخدم (${config.username}) واسم المستودع (${config.repo}) في الإعدادات، وتأكد أن الـ Token يمتلك صلاحية "repo".`);
+    } else if (error.status === 403) {
+      throw new Error(`خطأ 403 (مرفوض): الـ Token لا يمتلك الصلاحيات الكافية. يرجى التأكد من منحه صلاحية "repo" كاملة.`);
+    } else if (error.status === 409) {
+      throw new Error(`خطأ 409 (تعارض): المستودع فارغ تماماً. يرجى إنشاء ملف واحد على الأقل (مثل README.md) في المستودع أولاً.`);
+    }
+    throw new Error(error.message || 'حدث خطأ غير متوقع أثناء الاتصال بـ GitHub.');
   }
 };
 
@@ -172,18 +179,32 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
   const cleanUrl = uploadUrl.split('{')[0];
   const url = `${cleanUrl}?name=${encodeURIComponent(fileName)}`;
   
+  // تحديد نوع المحتوى بناءً على الامتداد لتحسين التوافق
+  let contentType = 'application/octet-stream';
+  if (fileName.toLowerCase().endsWith('.apk')) {
+    contentType = 'application/vnd.android.package-archive';
+  } else if (fileName.toLowerCase().endsWith('.zip')) {
+    contentType = 'application/zip';
+  } else if (fileName.toLowerCase().endsWith('.rar')) {
+    contentType = 'application/x-rar-compressed';
+  } else if (fileName.toLowerCase().endsWith('.exe')) {
+    contentType = 'application/x-msdownload';
+  }
+  
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    // مهلة زمنية طويلة جداً (30 دقيقة) للملفات الكبيرة
+    xhr.timeout = 1800000; 
+    
     xhr.open('POST', url, true);
     
     xhr.setRequestHeader('Authorization', `Bearer ${config.token}`);
     xhr.setRequestHeader('Accept', 'application/vnd.github+json');
-    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('Content-Type', contentType);
     
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percentComplete = (event.loaded / event.total) * 100;
-        console.log(`Upload progress for ${fileName}: ${percentComplete.toFixed(2)}%`);
         if (onProgress) {
           onProgress(percentComplete);
         }
@@ -200,17 +221,27 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
         }
       } else {
         console.error('Upload Asset Error:', xhr.status, xhr.responseText);
-        reject(new Error(`فشل رفع الملف (${xhr.status}): ${xhr.responseText}`));
+        let errorMsg = `فشل رفع الملف (${xhr.status})`;
+        if (xhr.status === 422) {
+          errorMsg = "هذا الملف موجود بالفعل في هذا الإصدار. يرجى تغيير اسم الملف أو حذف الإصدار القديم.";
+        } else if (xhr.status === 401 || xhr.status === 403) {
+          errorMsg = "خطأ في الصلاحيات: تأكد من أن الـ Token لديه صلاحية الوصول الكامل للمستودع (repo).";
+        }
+        reject(new Error(errorMsg));
       }
     };
     
     xhr.onerror = () => {
       console.error('XHR error during upload');
-      reject(new Error(`Failed to fetch: تأكد من استقرار اتصالك بالإنترنت وأن حجم الملف مسموح به. (Network Error)`));
+      reject(new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح."));
+    };
+    
+    xhr.ontimeout = () => {
+      reject(new Error("انتهت المهلة الزمنية للرفع. يبدو أن اتصال الإنترنت بطيء جداً بالنسبة لحجم الملف."));
     };
     
     xhr.onabort = () => {
-      reject(new Error('Upload aborted'));
+      reject(new Error('تم إلغاء عملية الرفع.'));
     };
     
     xhr.send(file);
