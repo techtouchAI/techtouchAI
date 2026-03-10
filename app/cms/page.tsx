@@ -118,9 +118,9 @@ export default function CMS() {
       const updatedApps = await saveApp({ name, description }, imageFile, appFiles, editingId || undefined);
       setApps(updatedApps);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save app:', error);
-      alert('حدث خطأ أثناء الحفظ');
+      alert(error.message || 'حدث خطأ أثناء الحفظ');
     } finally {
       setSaving(false);
     }

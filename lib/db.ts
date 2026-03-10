@@ -183,16 +183,25 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
   // 2. Upload App Files via Releases API
   const uploadedFiles: AppFile[] = [];
   if (appFiles.length > 0) {
-    const releaseTag = `app-${appId}`;
-    const release = await createRelease(config, releaseTag, `Assets for ${app.name}`);
-    
-    for (let i = 0; i < appFiles.length; i++) {
-      const { file, customName } = appFiles[i];
-      const fileExt = file.name.split('.').pop();
-      const safeFileName = `${appId}_${i}_${Date.now()}.${fileExt}`;
+    try {
+      const releaseTag = `app-${appId}`;
+      const release = await createRelease(config, releaseTag, `Assets for ${app.name}`);
       
-      const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName);
-      uploadedFiles.push({ path: asset.browser_download_url, name: customName || file.name });
+      for (let i = 0; i < appFiles.length; i++) {
+        const { file, customName } = appFiles[i];
+        const fileExt = file.name.split('.').pop();
+        const safeFileName = `${appId}_${i}_${Date.now()}.${fileExt}`;
+        
+        const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName);
+        uploadedFiles.push({ path: asset.browser_download_url, name: customName || file.name });
+      }
+    } catch (error: any) {
+      console.error("Error uploading release assets:", error);
+      // Try to clean up the image if this is a new app
+      if (!id) {
+        try { await deleteFromGithub(config, imagePath, `Cleanup image for failed app ${appId}`); } catch (e) {}
+      }
+      throw new Error(error.message || "فشل في رفع ملفات التطبيق. تأكد من صلاحيات Token وأن حجم الملف مسموح.");
     }
   }
 

@@ -139,6 +139,19 @@ export const fetchFromGithub = async (config: GithubConfig, path: string) => {
 export const createRelease = async (config: GithubConfig, tag: string, name: string) => {
   const octokit = new Octokit({ auth: config.token });
   try {
+    // Try to get the release first
+    try {
+      const { data } = await octokit.rest.repos.getReleaseByTag({
+        owner: config.username,
+        repo: config.repo,
+        tag,
+      });
+      return data;
+    } catch (e: any) {
+      if (e.status !== 404) throw e;
+    }
+
+    // If not found, create it
     const { data } = await octokit.rest.repos.createRelease({
       owner: config.username,
       repo: config.repo,
@@ -150,15 +163,8 @@ export const createRelease = async (config: GithubConfig, tag: string, name: str
     });
     return data;
   } catch (error: any) {
-    if (error.status === 422) {
-      const { data } = await octokit.rest.repos.getReleaseByTag({
-        owner: config.username,
-        repo: config.repo,
-        tag,
-      });
-      return data;
-    }
-    throw error;
+    console.error('Create Release Error:', error);
+    throw new Error(`فشل إنشاء الإصدار (Release) في GitHub. تأكد من أن الـ Token يمتلك صلاحية "Releases". التفاصيل: ${error.message}`);
   }
 };
 
@@ -169,16 +175,18 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `token ${config.token}`,
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/octet-stream',
+      'Authorization': `Bearer ${config.token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-GitHub-Api-Version': '2022-11-28'
     },
     body: file
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to upload asset: ${response.statusText} - ${errorText}`);
+    console.error('Upload Asset Error:', response.status, errorText);
+    throw new Error(`فشل رفع الملف: ${response.statusText}`);
   }
   return response.json();
 };
