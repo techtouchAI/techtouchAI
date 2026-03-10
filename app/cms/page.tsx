@@ -12,6 +12,7 @@ export default function CMS() {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   
   // App Form State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -108,6 +109,7 @@ export default function CMS() {
     }
 
     setSaving(true);
+    setUploadProgress(0);
     try {
       if (!imageFile || appFiles.length === 0) {
         alert('في هذه النسخة، يرجى إعادة رفع الصورة والملفات عند التعديل');
@@ -115,7 +117,13 @@ export default function CMS() {
         return;
       }
 
-      const updatedApps = await saveApp({ name, description }, imageFile, appFiles, editingId || undefined);
+      const updatedApps = await saveApp(
+        { name, description }, 
+        imageFile, 
+        appFiles, 
+        editingId || undefined,
+        (progress) => setUploadProgress(progress)
+      );
       setApps(updatedApps);
       resetForm();
     } catch (error: any) {
@@ -123,6 +131,7 @@ export default function CMS() {
       alert(error.message || 'حدث خطأ أثناء الحفظ');
     } finally {
       setSaving(false);
+      setUploadProgress(0);
     }
   };
 
@@ -419,24 +428,32 @@ export default function CMS() {
                     />
                   </div>
 
-                  <div className="pt-4 flex gap-3">
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
-                    >
-                      {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                      {editingId ? 'حفظ التعديلات' : 'رفع ونشر'}
-                    </button>
-                    {editingId && (
-                      <button
-                        type="button"
-                        onClick={resetForm}
-                        className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                      >
-                        إلغاء
-                      </button>
+                  <div className="pt-4 flex flex-col gap-3">
+                    {saving && uploadProgress > 0 && (
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-2">
+                        <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                        <p className="text-xs text-gray-500 mt-1 text-center">جاري الرفع... {Math.round(uploadProgress)}%</p>
+                      </div>
                     )}
+                    <div className="flex gap-3 w-full">
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+                      >
+                        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {editingId ? 'حفظ التعديلات' : 'رفع ونشر'}
+                      </button>
+                      {editingId && (
+                        <button
+                          type="button"
+                          onClick={resetForm}
+                          className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          إلغاء
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </form>
               </div>

@@ -168,32 +168,53 @@ export const createRelease = async (config: GithubConfig, tag: string, name: str
   }
 };
 
-export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string, file: File, fileName: string) => {
+export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string, file: File, fileName: string, onProgress?: (progress: number) => void): Promise<any> => {
   const cleanUrl = uploadUrl.split('{')[0];
   const url = `${cleanUrl}?name=${encodeURIComponent(fileName)}`;
   
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.token}`,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/octet-stream',
-        'X-GitHub-Api-Version': '2022-11-28'
-      },
-      body: file
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Upload Asset Error:', response.status, errorText);
-      throw new Error(`فشل رفع الملف (${response.status}): ${errorText}`);
-    }
-    return response.json();
-  } catch (error: any) {
-    console.error('Fetch error during upload:', error);
-    throw new Error(`Failed to fetch: تأكد من استقرار اتصالك بالإنترنت وأن حجم الملف مسموح به. (${error.message})`);
-  }
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    
+    xhr.setRequestHeader('Authorization', `Bearer ${config.token}`);
+    xhr.setRequestHeader('Accept', 'application/vnd.github+json');
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = (event.loaded / event.total) * 100;
+        console.log(`Upload progress for ${fileName}: ${percentComplete.toFixed(2)}%`);
+        if (onProgress) {
+          onProgress(percentComplete);
+        }
+      }
+    };
+    
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (e) {
+          resolve(xhr.responseText);
+        }
+      } else {
+        console.error('Upload Asset Error:', xhr.status, xhr.responseText);
+        reject(new Error(`فشل رفع الملف (${xhr.status}): ${xhr.responseText}`));
+      }
+    };
+    
+    xhr.onerror = () => {
+      console.error('XHR error during upload');
+      reject(new Error(`Failed to fetch: تأكد من استقرار اتصالك بالإنترنت وأن حجم الملف مسموح به. (Network Error)`));
+    };
+    
+    xhr.onabort = () => {
+      reject(new Error('Upload aborted'));
+    };
+    
+    xhr.send(file);
+  });
 };
 
 export const deleteReleaseByTag = async (config: GithubConfig, tag: string) => {

@@ -167,7 +167,7 @@ export const getApps = async (): Promise<AppItem[]> => {
   return [];
 };
 
-export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File, appFiles: { file: File, customName: string }[], id?: string): Promise<AppItem[]> => {
+export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File, appFiles: { file: File, customName: string }[], id?: string, onProgress?: (progress: number) => void): Promise<AppItem[]> => {
   const config = getGithubConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
@@ -192,7 +192,13 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
         const fileExt = file.name.split('.').pop();
         const safeFileName = `${appId}_${i}_${Date.now()}.${fileExt}`;
         
-        const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName);
+        const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName, (progress) => {
+          if (onProgress) {
+            const baseProgress = (i / appFiles.length) * 100;
+            const fileProgress = (progress / appFiles.length);
+            onProgress(baseProgress + fileProgress);
+          }
+        });
         uploadedFiles.push({ path: asset.browser_download_url, name: customName || file.name });
       }
     } catch (error: any) {
