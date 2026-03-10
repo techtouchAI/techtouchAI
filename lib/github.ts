@@ -172,23 +172,28 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
   const cleanUrl = uploadUrl.split('{')[0];
   const url = `${cleanUrl}?name=${encodeURIComponent(fileName)}`;
   
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${config.token}`,
-      'Accept': 'application/vnd.github+json',
-      'Content-Type': file.type || 'application/octet-stream',
-      'X-GitHub-Api-Version': '2022-11-28'
-    },
-    body: file
-  });
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/octet-stream',
+        'X-GitHub-Api-Version': '2022-11-28'
+      },
+      body: file
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Upload Asset Error:', response.status, errorText);
-    throw new Error(`فشل رفع الملف: ${response.statusText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Upload Asset Error:', response.status, errorText);
+      throw new Error(`فشل رفع الملف (${response.status}): ${errorText}`);
+    }
+    return response.json();
+  } catch (error: any) {
+    console.error('Fetch error during upload:', error);
+    throw new Error(`Failed to fetch: تأكد من استقرار اتصالك بالإنترنت وأن حجم الملف مسموح به. (${error.message})`);
   }
-  return response.json();
 };
 
 export const deleteReleaseByTag = async (config: GithubConfig, tag: string) => {
