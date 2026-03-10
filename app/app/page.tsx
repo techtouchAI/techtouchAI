@@ -27,13 +27,16 @@ function AppDetailsContent() {
   }, [id]);
 
   const handleDownload = async (path: string, name: string) => {
-    let url = getRawGithubUrl(path, 'main');
-    try {
-      const res = await fetch(url, { method: 'HEAD' });
-      if (!res.ok && res.status === 404) {
-        url = getRawGithubUrl(path, 'master');
-      }
-    } catch (e) {}
+    let url = path;
+    if (!path.startsWith('http')) {
+      url = getRawGithubUrl(path, 'main');
+      try {
+        const res = await fetch(url, { method: 'HEAD' });
+        if (!res.ok && res.status === 404) {
+          url = getRawGithubUrl(path, 'master');
+        }
+      } catch (e) {}
+    }
     const a = document.createElement('a');
     a.href = url;
     a.download = name;

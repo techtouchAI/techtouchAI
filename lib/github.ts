@@ -135,3 +135,77 @@ export const fetchFromGithub = async (config: GithubConfig, path: string) => {
     return null;
   }
 };
+
+export const createRelease = async (config: GithubConfig, tag: string, name: string) => {
+  const octokit = new Octokit({ auth: config.token });
+  try {
+    const { data } = await octokit.rest.repos.createRelease({
+      owner: config.username,
+      repo: config.repo,
+      tag_name: tag,
+      name: name,
+      body: 'Auto-generated release for app assets.',
+      draft: false,
+      prerelease: false,
+    });
+    return data;
+  } catch (error: any) {
+    if (error.status === 422) {
+      const { data } = await octokit.rest.repos.getReleaseByTag({
+        owner: config.username,
+        repo: config.repo,
+        tag,
+      });
+      return data;
+    }
+    throw error;
+  }
+};
+
+export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string, file: File, fileName: string) => {
+  const cleanUrl = uploadUrl.split('{')[0];
+  const url = `${cleanUrl}?name=${encodeURIComponent(fileName)}`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${config.token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/octet-stream',
+    },
+    body: file
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to upload asset: ${response.statusText} - ${errorText}`);
+  }
+  return response.json();
+};
+
+export const deleteReleaseByTag = async (config: GithubConfig, tag: string) => {
+  const octokit = new Octokit({ auth: config.token });
+  try {
+    const { data: release } = await octokit.rest.repos.getReleaseByTag({
+      owner: config.username,
+      repo: config.repo,
+      tag,
+    });
+    
+    await octokit.rest.repos.deleteRelease({
+      owner: config.username,
+      repo: config.repo,
+      release_id: release.id,
+    });
+
+    await octokit.rest.git.deleteRef({
+      owner: config.username,
+      repo: config.repo,
+      ref: `tags/${tag}`,
+    });
+  } catch (error: any) {
+    if (error.status !== 404) {
+      console.error('Error deleting release:', error);
+    }
+  }
+};

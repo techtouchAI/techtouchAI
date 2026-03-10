@@ -16,13 +16,16 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
 
   const handleDownload = async (e: React.MouseEvent, path: string, name: string) => {
     e.preventDefault();
-    let url = getRawGithubUrl(path, 'main');
-    try {
-      const res = await fetch(url, { method: 'HEAD' });
-      if (!res.ok && res.status === 404) {
-        url = getRawGithubUrl(path, 'master');
-      }
-    } catch (err) {}
+    let url = path;
+    if (!path.startsWith('http')) {
+      url = getRawGithubUrl(path, 'main');
+      try {
+        const res = await fetch(url, { method: 'HEAD' });
+        if (!res.ok && res.status === 404) {
+          url = getRawGithubUrl(path, 'master');
+        }
+      } catch (err) {}
+    }
     const a = document.createElement('a');
     a.href = url;
     a.download = name;

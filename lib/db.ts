@@ -1,4 +1,4 @@
-import { getGithubConfig, uploadToGithub, fetchFromGithub, deleteFromGithub } from './github';
+import { getGithubConfig, uploadToGithub, fetchFromGithub, deleteFromGithub, createRelease, uploadReleaseAsset, deleteReleaseByTag } from './github';
 
 export interface AppFile {
   path: string;
@@ -180,15 +180,20 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
   const imageBase64 = await fileToBase64(imageFile);
   await uploadToGithub(config, imagePath, imageBase64, `Upload image for app ${appId}`, true);
 
-  // 2. Upload App Files
+  // 2. Upload App Files via Releases API
   const uploadedFiles: AppFile[] = [];
-  for (let i = 0; i < appFiles.length; i++) {
-    const { file, customName } = appFiles[i];
-    const fileExt = file.name.split('.').pop();
-    const filePath = `public/data/files/${appId}_${i}_${Date.now()}.${fileExt}`;
-    const fileBase64 = await fileToBase64(file);
-    await uploadToGithub(config, filePath, fileBase64, `Upload file ${file.name} for app ${appId}`, true);
-    uploadedFiles.push({ path: filePath, name: customName || file.name });
+  if (appFiles.length > 0) {
+    const releaseTag = `app-${appId}`;
+    const release = await createRelease(config, releaseTag, `Assets for ${app.name}`);
+    
+    for (let i = 0; i < appFiles.length; i++) {
+      const { file, customName } = appFiles[i];
+      const fileExt = file.name.split('.').pop();
+      const safeFileName = `${appId}_${i}_${Date.now()}.${fileExt}`;
+      
+      const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName);
+      uploadedFiles.push({ path: asset.browser_download_url, name: customName || file.name });
+    }
   }
 
   // 3. Update apps.json
@@ -230,9 +235,14 @@ export const deleteApp = async (id: string): Promise<AppItem[]> => {
     }
     if (appToDelete.files) {
       for (const file of appToDelete.files) {
-        try { await deleteFromGithub(config, file.path, `Delete file for app ${id}`); } catch (e) {}
+        if (!file.path.startsWith('http')) {
+          try { await deleteFromGithub(config, file.path, `Delete file for app ${id}`); } catch (e) {}
+        }
       }
     }
+    
+    // Delete the release and its assets
+    await deleteReleaseByTag(config, `app-${id}`);
 
     const updatedApps = apps.filter(a => a.id !== id).sort((a, b) => b.createdAt - a.createdAt);
     
