@@ -43,7 +43,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-16 text-center max-w-2xl mx-auto">
           <h1 className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">
-            استكشف <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">التطبيقات</span>
+            التطبيقات
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-lg mb-8">
             تصفح وحمل أحدث التطبيقات والملفات بكل سهولة وأمان
