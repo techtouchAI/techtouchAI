@@ -49,17 +49,17 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50 transition-colors duration-300">
+    <nav className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 dark:border-gray-800/50 sticky top-0 z-50 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            <Link href="/" className="flex items-center gap-2 text-xl font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
+        <div className="flex justify-between h-20 items-center">
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center gap-3 text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent hover:opacity-80 transition-opacity whitespace-nowrap">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img 
                   src={logoUrl} 
                   alt="Logo" 
-                  className="w-8 h-8 object-contain rounded-lg" 
+                  className="w-10 h-10 object-contain rounded-xl shadow-sm"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     if (target.src.includes('/main/')) {
@@ -70,18 +70,23 @@ export default function Navbar() {
                   }}
                 />
               ) : (
-                <LayoutGrid className="w-6 h-6" />
+                <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/30 text-white">
+                  <LayoutGrid className="w-6 h-6" />
+                </div>
               )}
               {settings?.siteName && (
-                <span>{settings.siteName}</span>
+                <span className="tracking-tight">{settings.siteName}</span>
               )}
             </Link>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-4">
+            <Link href="/cms" className="hidden sm:flex text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+              لوحة التحكم
+            </Link>
             {mounted && (
               <button
                 onClick={toggleDark}
-                className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="p-2.5 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 aria-label="تبديل الوضع الليلي"
               >
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
