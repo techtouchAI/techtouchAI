@@ -233,7 +233,13 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
     
     xhr.onerror = () => {
       console.error('XHR error during upload');
-      reject(new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح."));
+      // Adding a specific check and message for mobile browsers experiencing RAM limits or network instability.
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile && file.size > 50 * 1024 * 1024) {
+          reject(new Error("حدث خطأ في الشبكة أثناء الرفع. يبدو أنك تستخدم هاتفاً محمولاً، ومتصفحات الجوال غالباً ما توقف رفع الملفات الكبيرة (أكبر من 50MB) فجأة لتوفير الذاكرة (RAM). يرجى محاولة استخدام متصفح كمبيوتر."));
+      } else {
+          reject(new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح أو الشبكة."));
+      }
     };
     
     xhr.ontimeout = () => {
