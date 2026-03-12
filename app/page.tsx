@@ -42,12 +42,6 @@ export default function Home() {
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-16 text-center max-w-2xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">
-            التطبيقات
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-lg mb-8">
-            تصفح وحمل أحدث التطبيقات والملفات بكل سهولة وأمان
-          </p>
           <div className="relative max-w-xl mx-auto group">
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
             <input

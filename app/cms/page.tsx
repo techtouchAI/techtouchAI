@@ -427,13 +427,8 @@ export default function CMS() {
                         if (e.target.files) {
                           const files = Array.from(e.target.files);
                           const largeFiles = files.filter(f => f.size > 50 * 1024 * 1024);
-                          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                           if (largeFiles.length > 0) {
-                            if (isMobile) {
-                                alert('تنبيه: أنت تقوم برفع ملفات كبيرة (أكثر من 50MB) من هاتف محمول. متصفحات الجوال غالباً ما توقف رفع الملفات الكبيرة فجأة لتوفير الذاكرة (RAM). إذا فشل الرفع، يرجى استخدام متصفح كمبيوتر.');
-                            } else {
-                                alert('لقد اخترت ملفات كبيرة. الرفع قد يستغرق وقتاً طويلاً، يرجى التأكد من عدم إغلاق الصفحة واستقرار الإنترنت لضمان نجاح العملية.');
-                            }
+                              alert('لقد اخترت ملفات كبيرة. الرفع قد يستغرق وقتاً طويلاً، يرجى التأكد من عدم إغلاق الصفحة واستقرار الإنترنت لضمان نجاح العملية.');
                           }
                           const newFiles = files.map(f => ({ file: f, customName: f.name }));
                           setAppFiles(newFiles);
