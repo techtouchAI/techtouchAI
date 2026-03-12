@@ -52,14 +52,14 @@ export default function Navbar() {
     <nav className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 dark:border-gray-800/50 sticky top-0 z-50 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20 items-center">
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center gap-3 text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent hover:opacity-80 transition-opacity whitespace-nowrap">
+          <div className="flex items-center min-w-0">
+            <Link href="/" className="flex items-center gap-2 sm:gap-3 font-black bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent hover:opacity-80 transition-opacity min-w-0">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img 
                   src={logoUrl} 
                   alt="Logo" 
-                  className="w-10 h-10 object-contain rounded-xl shadow-sm"
+                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-xl shadow-sm flex-shrink-0"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     if (target.src.includes('/main/')) {
@@ -70,12 +70,12 @@ export default function Navbar() {
                   }}
                 />
               ) : (
-                <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/30 text-white">
-                  <LayoutGrid className="w-6 h-6" />
+                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/30 text-white flex-shrink-0">
+                  <LayoutGrid className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
               )}
               {settings?.siteName && (
-                <span className="tracking-tight">{settings.siteName}</span>
+                <span className={`tracking-tight truncate ${settings.siteNameFontSize || 'text-xl sm:text-2xl'}`}>{settings.siteName}</span>
               )}
             </Link>
           </div>
