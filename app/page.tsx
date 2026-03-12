@@ -88,7 +88,7 @@ export default function Home() {
               <Search className="w-10 h-10 text-gray-400" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">لا توجد نتائج مطابقة</h3>
-            <p className="text-gray-500 dark:text-gray-400">لم نتمكن من العثور على أي تطبيق يطابق كلمة البحث "{searchQuery}"</p>
+            <p className="text-gray-500 dark:text-gray-400">لم نتمكن من العثور على أي تطبيق يطابق كلمة البحث &quot;{searchQuery}&quot;</p>
           </div>
         ) : (
           <div className={`grid gap-6 sm:gap-8 ${filteredApps.length === 1 ? 'grid-cols-1 max-w-3xl mx-auto' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
