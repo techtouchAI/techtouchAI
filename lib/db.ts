@@ -93,17 +93,22 @@ export const fetchPublicData = async (path: string) => {
       const data = await apiRes.json();
       if (!Array.isArray(data) && data.type === 'file' && data.content) {
         const cleanBase64 = data.content.replace(/\n/g, '');
-        const binString = atob(cleanBase64);
-        const bytes = new Uint8Array(binString.length);
-        for (let i = 0; i < binString.length; i++) {
-          bytes[i] = binString.charCodeAt(i);
+        if (typeof Buffer !== 'undefined') {
+          const text = Buffer.from(cleanBase64, 'base64').toString('utf-8');
+          return JSON.parse(text);
+        } else {
+          const binString = atob(cleanBase64);
+          const bytes = new Uint8Array(binString.length);
+          for (let i = 0; i < binString.length; i++) {
+            bytes[i] = binString.charCodeAt(i);
+          }
+          const text = new TextDecoder().decode(bytes);
+          return JSON.parse(text);
         }
-        const text = new TextDecoder().decode(bytes);
-        return JSON.parse(text);
       }
     }
   } catch (e) {
-    // Suppress error to avoid console clutter, it will fallback automatically
+    console.warn(`Failed to fetch ${path} from GitHub API, falling back...`, e);
   }
 
   // 2. Fallback: GitHub Pages Relative Path (Updates after build 1-2 mins)
@@ -119,7 +124,7 @@ export const fetchPublicData = async (path: string) => {
       }
     }
   } catch (e) {
-    // Suppress error to avoid console clutter
+    console.warn(`Failed to fetch ${path} from relative path, falling back...`, e);
   }
 
   // 3. Fallback: Raw GitHub Content (Updates after 5 mins)
@@ -137,7 +142,7 @@ export const fetchPublicData = async (path: string) => {
       return text ? JSON.parse(text) : null;
     }
   } catch (e) {
-    // Suppress error
+    console.warn(`Failed to fetch public data from raw GitHub URLs:`, e);
   }
   return null;
 };
@@ -155,7 +160,7 @@ export const getApps = async (): Promise<AppItem[]> => {
         return apps.sort((a, b) => b.createdAt - a.createdAt);
       }
     } catch (e) {
-      console.error('GitHub fetch failed, falling back to public data', e);
+      console.error('GitHub fetch failed, falling back to public data:', e);
     }
   }
 
@@ -195,25 +200,32 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
       const releaseTag = `app-${appId}`;
       const release = await createRelease(config, releaseTag, `Assets for ${app.name}`);
       
-      const newUploadedFiles: AppFile[] = [];
-      for (let i = 0; i < appFiles.length; i++) {
-        const { file, customName } = appFiles[i];
+      // Array to keep track of each file's individual progress
+      const fileProgresses = new Array(appFiles.length).fill(0);
+
+      const uploadPromises = appFiles.map(async (appFile, i) => {
+        const { file, customName } = appFile;
         const fileExt = file.name.split('.').pop();
         const safeFileName = `${appId}_${i}_${Date.now()}.${fileExt}`;
         
         const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName, (progress) => {
           if (onProgress) {
-            const baseProgress = (i / appFiles.length) * 100;
-            const fileProgress = (progress / appFiles.length);
-            onProgress(baseProgress + fileProgress);
+            fileProgresses[i] = progress; // progress is expected to be 0 to 100
+
+            // Calculate total progress across all files
+            const totalProgress = fileProgresses.reduce((acc, curr) => acc + curr, 0) / appFiles.length;
+            onProgress(totalProgress);
           }
         });
-        newUploadedFiles.push({ path: asset.browser_download_url, name: customName || file.name });
-      }
+        return { path: asset.browser_download_url, name: customName || file.name };
+      });
+
+      const newUploadedFiles = await Promise.all(uploadPromises);
       uploadedFiles = newUploadedFiles;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error uploading release assets:", error);
-      throw new Error(error.message || "فشل في رفع ملفات التطبيق.");
+      const errorMessage = error instanceof Error ? error.message : "فشل في رفع ملفات التطبيق.";
+      throw new Error(errorMessage);
     }
   }
 
@@ -249,20 +261,24 @@ export const deleteApp = async (id: string): Promise<AppItem[]> => {
   const appToDelete = apps.find(a => a.id === id);
   
   if (appToDelete) {
-    try { await deleteFromGithub(config, appToDelete.imagePath, `Delete image for app ${id}`); } catch (e) {}
+    try { await deleteFromGithub(config, appToDelete.imagePath, `Delete image for app ${id}`); } catch (e) { console.error(`Failed to delete image for app ${id}:`, e); }
     if (appToDelete.filePath) {
-      try { await deleteFromGithub(config, appToDelete.filePath, `Delete file for app ${id}`); } catch (e) {}
+      try { await deleteFromGithub(config, appToDelete.filePath, `Delete file for app ${id}`); } catch (e) { console.error(`Failed to delete file for app ${id}:`, e); }
     }
     if (appToDelete.files) {
       for (const file of appToDelete.files) {
         if (!file.path.startsWith('http')) {
-          try { await deleteFromGithub(config, file.path, `Delete file for app ${id}`); } catch (e) {}
+          try { await deleteFromGithub(config, file.path, `Delete file for app ${id}`); } catch (e) { console.error(`Failed to delete file ${file.path} for app ${id}:`, e); }
         }
       }
     }
     
-    // Delete the release and its assets
-    await deleteReleaseByTag(config, `app-${id}`);
+    try {
+      // Delete the release and its assets
+      await deleteReleaseByTag(config, `app-${id}`);
+    } catch (e) {
+      console.error(`Failed to delete release app-${id}:`, e);
+    }
 
     const updatedApps = apps.filter(a => a.id !== id).sort((a, b) => b.createdAt - a.createdAt);
     
@@ -308,7 +324,9 @@ export const getSiteSettings = async (): Promise<SiteSettings | null> => {
         content = await fetchFromGithub(config, 'data/settings.json');
       }
       if (content) return JSON.parse(content);
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to fetch settings from github API:', e);
+    }
   }
 
   let publicData = await fetchPublicData('public/data/settings.json');

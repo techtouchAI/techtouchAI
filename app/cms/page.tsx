@@ -80,9 +80,10 @@ export default function CMS() {
       setIsGithubConfigured(true);
       setActiveTab('apps');
       await loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save GitHub config:', error);
-      alert(error.message || 'حدث خطأ أثناء حفظ إعدادات GitHub');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء حفظ إعدادات GitHub';
+      alert(errorMessage);
     } finally {
       setSavingGithub(false);
     }
@@ -102,9 +103,10 @@ export default function CMS() {
       if (newSettings.headerFontSize) setHeaderFontSize(newSettings.headerFontSize);
       alert('تم حفظ الإعدادات بنجاح');
       setLogoFile(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save settings:', error);
-      alert(error.message || 'حدث خطأ أثناء حفظ الإعدادات');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء حفظ الإعدادات';
+      alert(errorMessage);
     } finally {
       setSavingSettings(false);
     }
@@ -131,9 +133,10 @@ export default function CMS() {
       setApps(updatedApps);
       resetForm();
       alert('تم حفظ التطبيق ونشره بنجاح! سيظهر على الموقع خلال لحظات.');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save app:', error);
-      alert(error.message || 'حدث خطأ أثناء الحفظ');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ';
+      alert(errorMessage);
     } finally {
       setSaving(false);
       setUploadProgress(0);
