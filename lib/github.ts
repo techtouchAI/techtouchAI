@@ -20,8 +20,10 @@ export const saveGithubConfig = (config: GithubConfig) => {
 const encodeBase64 = (str: string) => {
   const bytes = new TextEncoder().encode(str);
   let binString = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binString += String.fromCharCode(bytes[i]);
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binString += String.fromCharCode.apply(null, Array.from(chunk));
   }
   return btoa(binString);
 };

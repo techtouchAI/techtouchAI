@@ -80,9 +80,9 @@ export default function CMS() {
       setIsGithubConfigured(true);
       setActiveTab('apps');
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save GitHub config:', error);
-      alert('حدث خطأ أثناء حفظ إعدادات GitHub');
+      alert(error.message || 'حدث خطأ أثناء حفظ إعدادات GitHub');
     } finally {
       setSavingGithub(false);
     }
@@ -102,9 +102,9 @@ export default function CMS() {
       if (newSettings.headerFontSize) setHeaderFontSize(newSettings.headerFontSize);
       alert('تم حفظ الإعدادات بنجاح');
       setLogoFile(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save settings:', error);
-      alert('حدث خطأ أثناء حفظ الإعدادات');
+      alert(error.message || 'حدث خطأ أثناء حفظ الإعدادات');
     } finally {
       setSavingSettings(false);
     }
