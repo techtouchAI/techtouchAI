@@ -23,7 +23,7 @@ const encodeBase64 = (str: string) => {
   const chunkSize = 8192;
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const chunk = bytes.subarray(i, i + chunkSize);
-    binString += String.fromCharCode.apply(null, Array.from(chunk));
+    binString += String.fromCharCode.apply(null, chunk as unknown as number[]);
   }
   return btoa(binString);
 };
