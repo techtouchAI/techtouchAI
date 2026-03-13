@@ -16,25 +16,19 @@ export const saveGithubConfig = (config: GithubConfig) => {
   localStorage.setItem('github_config', JSON.stringify(config));
 };
 
-// Helper to safely encode binary/string to base64 with chunking to avoid stack limits
-const encodeBase64 = (data: string | Uint8Array): string => {
-  if (typeof data === 'string') {
-    const bytes = new TextEncoder().encode(data);
-    return encodeBase64(bytes);
-  }
-  
+// Helper to safely encode utf-8 to base64
+const encodeBase64 = (str: string) => {
+  const bytes = new TextEncoder().encode(str);
   let binString = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < data.length; i += chunkSize) {
-    const chunk = data.subarray(i, i + chunkSize);
-    binString += String.fromCharCode.apply(null, Array.from(chunk));
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binString += String.fromCharCode(bytes[i]);
   }
   return btoa(binString);
 };
 
 // Helper to safely decode base64 to utf-8
-const decodeBase64 = (base64: string): string => {
-  const cleanBase64 = base64.replace(/\s/g, '');
+const decodeBase64 = (base64: string) => {
+  const cleanBase64 = base64.replace(/\n/g, '');
   const binString = atob(cleanBase64);
   const bytes = new Uint8Array(binString.length);
   for (let i = 0; i < binString.length; i++) {
@@ -46,9 +40,9 @@ const decodeBase64 = (base64: string): string => {
 export const uploadToGithub = async (
   config: GithubConfig,
   path: string,
-  content: string | Uint8Array, // Can be string or raw bytes
+  content: string, // Base64 encoded content for files, or string for JSON
   message: string,
-  isEncoded: boolean = false
+  isBase64: boolean = false
 ) => {
   const octokit = new Octokit({ auth: config.token });
 
@@ -68,14 +62,13 @@ export const uploadToGithub = async (
       if (error.status !== 404) throw error;
     }
 
-    // Create or update file using the most robust encoding (Base64)
-    // This is the standard "encryption" (encoding) required by GitHub REST API
+    // Create or update file
     await octokit.rest.repos.createOrUpdateFileContents({
       owner: config.username,
       repo: config.repo,
       path,
       message,
-      content: isEncoded ? (content as string) : encodeBase64(content),
+      content: isBase64 ? content : encodeBase64(content),
       sha,
     });
 
@@ -198,61 +191,42 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
     contentType = 'application/x-msdownload';
   }
   
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    // مهلة زمنية طويلة جداً (30 دقيقة) للملفات الكبيرة
-    xhr.timeout = 1800000; 
-    
-    xhr.open('POST', url, true);
-    
-    xhr.setRequestHeader('Authorization', `Bearer ${config.token}`);
-    xhr.setRequestHeader('Accept', 'application/vnd.github+json');
-    xhr.setRequestHeader('Content-Type', contentType);
-    
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percentComplete = (event.loaded / event.total) * 100;
-        if (onProgress) {
-          onProgress(percentComplete);
-        }
+  try {
+    // استخدام fetch بدلاً من XMLHttpRequest لتجنب مشاكل CORS والشبكة في المتصفحات الحديثة
+    // fetch يعتبر "أفضل ممارسة" (Best Practice) للتعامل مع GitHub API في المتصفح
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.token}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': contentType,
+      },
+      body: file, // fetch يقبل كائن File مباشرة وبكفاءة عالية
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Upload Asset Error:', response.status, errorText);
+      let errorMsg = `فشل رفع الملف (${response.status})`;
+      if (response.status === 422) {
+        errorMsg = "هذا الملف موجود بالفعل في هذا الإصدار. يرجى تغيير اسم الملف أو حذف الإصدار القديم.";
+      } else if (response.status === 401 || response.status === 403) {
+        errorMsg = "خطأ في الصلاحيات: تأكد من أن الـ Token لديه صلاحية الوصول الكامل للمستودع (repo).";
       }
-    };
-    
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          resolve(response);
-        } catch (e) {
-          resolve(xhr.responseText);
-        }
-      } else {
-        console.error('Upload Asset Error:', xhr.status, xhr.responseText);
-        let errorMsg = `فشل رفع الملف (${xhr.status})`;
-        if (xhr.status === 422) {
-          errorMsg = "هذا الملف موجود بالفعل في هذا الإصدار. يرجى تغيير اسم الملف أو حذف الإصدار القديم.";
-        } else if (xhr.status === 401 || xhr.status === 403) {
-          errorMsg = "خطأ في الصلاحيات: تأكد من أن الـ Token لديه صلاحية الوصول الكامل للمستودع (repo).";
-        }
-        reject(new Error(errorMsg));
-      }
-    };
-    
-    xhr.onerror = () => {
-      console.error('XHR error during upload');
-      reject(new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح."));
-    };
-    
-    xhr.ontimeout = () => {
-      reject(new Error("انتهت المهلة الزمنية للرفع. يبدو أن اتصال الإنترنت بطيء جداً بالنسبة لحجم الملف."));
-    };
-    
-    xhr.onabort = () => {
-      reject(new Error('تم إلغاء عملية الرفع.'));
-    };
-    
-    xhr.send(file);
-  });
+      throw new Error(errorMsg);
+    }
+
+    // محاكاة التقدم لأن fetch لا يدعم onprogress بشكل افتراضي للرفع
+    if (onProgress) {
+      onProgress(100);
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Fetch error during upload:', error);
+    throw new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح.");
+  }
 };
 
 export const deleteReleaseByTag = async (config: GithubConfig, tag: string) => {

@@ -23,13 +23,15 @@ export interface SiteSettings {
   headerFontSize?: number;
 }
 
-// Helper to convert File to Uint8Array (more efficient for large files)
-const fileToUint8Array = (file: File): Promise<Uint8Array> => {
+// Helper to convert File to Base64 natively (most reliable and performant for browser)
+const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsArrayBuffer(file);
+    reader.readAsDataURL(file);
     reader.onload = () => {
-      resolve(new Uint8Array(reader.result as ArrayBuffer));
+      const result = reader.result as string;
+      // Remove the Data URL prefix (e.g., "data:image/png;base64,")
+      resolve(result.split(',')[1]);
     };
     reader.onerror = error => reject(error);
   });
@@ -182,8 +184,8 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
   if (imageFile) {
     const imageExt = imageFile.name.split('.').pop();
     imagePath = `public/data/images/${appId}.${imageExt}`;
-    const imageBytes = await fileToUint8Array(imageFile);
-    await uploadToGithub(config, imagePath, imageBytes, `Upload image for app ${appId}`);
+    const imageBase64 = await fileToBase64(imageFile);
+    await uploadToGithub(config, imagePath, imageBase64, `Upload image for app ${appId}`, true);
   }
 
   // 2. Upload App Files via Releases API (only if provided)
@@ -280,8 +282,8 @@ export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPat
   if (logoFile) {
     const ext = logoFile.name.split('.').pop();
     logoPath = `public/data/settings/logo.${ext}`;
-    const logoBytes = await fileToUint8Array(logoFile);
-    await uploadToGithub(config, logoPath, logoBytes, 'Update site logo');
+    const logoBase64 = await fileToBase64(logoFile);
+    await uploadToGithub(config, logoPath, logoBase64, 'Update site logo', true);
   } else {
     const existingSettings = await getSiteSettings();
     logoPath = existingSettings?.siteLogoPath || '';
