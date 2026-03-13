@@ -196,10 +196,11 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
       const newUploadedFiles: AppFile[] = [];
       for (let i = 0; i < appFiles.length; i++) {
         const { file, customName } = appFiles[i];
-        const fileExt = file.name.split('.').pop();
-        const safeFileName = `${appId}_${i}_${Date.now()}.${fileExt}`;
         
-        const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName, (progress) => {
+        // Use the exact original file name as requested (without any processing or modification)
+        const exactFileName = file.name;
+
+        const asset = await uploadReleaseAsset(config, release.upload_url, file, exactFileName, (progress) => {
           if (onProgress) {
             const baseProgress = (i / appFiles.length) * 100;
             const fileProgress = (progress / appFiles.length);
