@@ -195,22 +195,23 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
       const releaseTag = `app-${appId}`;
       const release = await createRelease(config, releaseTag, `Assets for ${app.name}`);
       
-      const newUploadedFiles: AppFile[] = [];
-      for (let i = 0; i < appFiles.length; i++) {
-        const { file, customName } = appFiles[i];
+      const progresses = new Array(appFiles.length).fill(0);
+      const uploadPromises = appFiles.map(async ({ file, customName }, i) => {
         const fileExt = file.name.split('.').pop();
         const safeFileName = `${appId}_${i}_${Date.now()}.${fileExt}`;
         
         const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName, (progress) => {
+          progresses[i] = progress;
           if (onProgress) {
-            const baseProgress = (i / appFiles.length) * 100;
-            const fileProgress = (progress / appFiles.length);
-            onProgress(baseProgress + fileProgress);
+            const totalProgress = progresses.reduce((sum, p) => sum + p, 0) / appFiles.length;
+            onProgress(totalProgress);
           }
         });
-        newUploadedFiles.push({ path: asset.browser_download_url, name: customName || file.name });
-      }
-      uploadedFiles = newUploadedFiles;
+
+        return { path: asset.browser_download_url, name: customName || file.name };
+      });
+
+      uploadedFiles = await Promise.all(uploadPromises);
     } catch (error: any) {
       console.error("Error uploading release assets:", error);
       throw new Error(error.message || "فشل في رفع ملفات التطبيق.");
