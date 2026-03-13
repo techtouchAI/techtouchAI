@@ -16,19 +16,25 @@ export const saveGithubConfig = (config: GithubConfig) => {
   localStorage.setItem('github_config', JSON.stringify(config));
 };
 
-// Helper to safely encode utf-8 to base64
-const encodeBase64 = (str: string) => {
-  const bytes = new TextEncoder().encode(str);
+// Helper to safely encode binary/string to base64 with chunking to avoid stack limits
+const encodeBase64 = (data: string | Uint8Array): string => {
+  if (typeof data === 'string') {
+    const bytes = new TextEncoder().encode(data);
+    return encodeBase64(bytes);
+  }
+  
   let binString = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binString += String.fromCharCode(bytes[i]);
+  const chunkSize = 8192;
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.subarray(i, i + chunkSize);
+    binString += String.fromCharCode.apply(null, Array.from(chunk));
   }
   return btoa(binString);
 };
 
 // Helper to safely decode base64 to utf-8
-const decodeBase64 = (base64: string) => {
-  const cleanBase64 = base64.replace(/\n/g, '');
+const decodeBase64 = (base64: string): string => {
+  const cleanBase64 = base64.replace(/\s/g, '');
   const binString = atob(cleanBase64);
   const bytes = new Uint8Array(binString.length);
   for (let i = 0; i < binString.length; i++) {
@@ -40,9 +46,9 @@ const decodeBase64 = (base64: string) => {
 export const uploadToGithub = async (
   config: GithubConfig,
   path: string,
-  content: string, // Base64 encoded content for files, or string for JSON
+  content: string | Uint8Array, // Can be string or raw bytes
   message: string,
-  isBase64: boolean = false
+  isEncoded: boolean = false
 ) => {
   const octokit = new Octokit({ auth: config.token });
 
@@ -62,13 +68,14 @@ export const uploadToGithub = async (
       if (error.status !== 404) throw error;
     }
 
-    // Create or update file
+    // Create or update file using the most robust encoding (Base64)
+    // This is the standard "encryption" (encoding) required by GitHub REST API
     await octokit.rest.repos.createOrUpdateFileContents({
       owner: config.username,
       repo: config.repo,
       path,
       message,
-      content: isBase64 ? content : encodeBase64(content),
+      content: isEncoded ? (content as string) : encodeBase64(content),
       sha,
     });
 
