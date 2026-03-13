@@ -63,7 +63,7 @@ export const getRepoInfo = () => {
           owner = config.username;
           repo = config.repo;
         }
-      } catch (e) {}
+      } catch (e) { console.error('Failed to parse github_config from localStorage:', e); }
     }
   }
   return { owner, repo };
@@ -249,14 +249,14 @@ export const deleteApp = async (id: string): Promise<AppItem[]> => {
   const appToDelete = apps.find(a => a.id === id);
   
   if (appToDelete) {
-    try { await deleteFromGithub(config, appToDelete.imagePath, `Delete image for app ${id}`); } catch (e) {}
+    try { await deleteFromGithub(config, appToDelete.imagePath, `Delete image for app ${id}`); } catch (e) { console.error(`Failed to delete image for app ${id}:`, e); }
     if (appToDelete.filePath) {
-      try { await deleteFromGithub(config, appToDelete.filePath, `Delete file for app ${id}`); } catch (e) {}
+      try { await deleteFromGithub(config, appToDelete.filePath, `Delete file for app ${id}`); } catch (e) { console.error(`Failed to delete file for app ${id}:`, e); }
     }
     if (appToDelete.files) {
       for (const file of appToDelete.files) {
         if (!file.path.startsWith('http')) {
-          try { await deleteFromGithub(config, file.path, `Delete file for app ${id}`); } catch (e) {}
+          try { await deleteFromGithub(config, file.path, `Delete file for app ${id}`); } catch (e) { console.error(`Failed to delete file ${file.path} for app ${id}:`, e); }
         }
       }
     }
@@ -308,7 +308,7 @@ export const getSiteSettings = async (): Promise<SiteSettings | null> => {
         content = await fetchFromGithub(config, 'data/settings.json');
       }
       if (content) return JSON.parse(content);
-    } catch (e) {}
+    } catch (e) { console.error('Failed to fetch or parse settings.json:', e); }
   }
 
   let publicData = await fetchPublicData('public/data/settings.json');
