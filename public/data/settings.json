@@ -1,4 +1,5 @@
 {
   "siteName": "تطبيقات للشاشات",
+  "siteNameFontSize": "text-lg sm:text-xl",
   "siteLogoPath": "public/data/settings/logo.png"
 }
