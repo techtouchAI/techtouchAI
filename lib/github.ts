@@ -200,7 +200,6 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
     
     xhr.setRequestHeader('Authorization', `Bearer ${config.token}`);
     xhr.setRequestHeader('Accept', 'application/vnd.github+json');
-    xhr.setRequestHeader('X-GitHub-Api-Version', '2022-11-28');
     xhr.setRequestHeader('Content-Type', contentType);
     
     xhr.upload.onprogress = (event) => {
@@ -234,7 +233,7 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
     
     xhr.onerror = () => {
       console.error('XHR error during upload');
-      reject(new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى."));
+      reject(new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح."));
     };
     
     xhr.ontimeout = () => {

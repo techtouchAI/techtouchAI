@@ -36,15 +36,14 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
   };
 
   return (
-    <Link href={`/app?id=${app.id}`} className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-3xl shadow-sm hover:shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden transition-all duration-300 group flex flex-row items-center p-4 sm:p-5 gap-4 sm:gap-5 hover:-translate-y-1">
-      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-gray-50 dark:bg-gray-800 flex-shrink-0 shadow-inner group-hover:shadow-lg transition-shadow duration-300">
-        <div className="absolute inset-0 bg-gradient-to-tr from-black/5 to-transparent dark:from-white/5 z-10 pointer-events-none"></div>
+    <Link href={`/app?id=${app.id}`} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-row items-center p-2.5 sm:p-3 gap-3">
+      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800 flex-shrink-0">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageUrl}
             alt={app.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               if (target.src.includes('/main/')) {
@@ -60,25 +59,25 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
           </div>
         )}
       </div>
-      <div className="flex-grow flex flex-col justify-center min-w-0 py-1">
-        <h3 className="font-bold text-gray-900 dark:text-white text-lg sm:text-xl line-clamp-1 mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+      <div className="flex-grow flex flex-col justify-center min-w-0 py-0.5">
+        <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-1 mb-0.5">
           {app.name}
         </h3>
         {app.description && (
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-3 leading-relaxed">
+          <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mb-1.5 leading-relaxed">
             {app.description}
           </p>
         )}
-        <div className="flex items-center gap-2 mt-auto overflow-x-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-1">
+        <div className="flex items-center gap-1.5 mt-auto overflow-x-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {files.map((file, idx) => (
             <button 
               key={idx}
               onClick={(e) => handleDownload(e, file.path, file.name)}
-              className="flex-shrink-0 flex items-center gap-1.5 bg-indigo-50/80 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
+              className="flex-shrink-0 flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-md text-[9px] sm:text-[10px] font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
               title={file.name}
             >
-              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="max-w-[60px] sm:max-w-[80px] truncate" dir="ltr">{file.name}</span>
+              <Download className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="max-w-[50px] sm:max-w-[70px] truncate" dir="ltr">{file.name}</span>
             </button>
           ))}
         </div>
