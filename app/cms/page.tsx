@@ -131,9 +131,9 @@ export default function CMS() {
       setApps(updatedApps);
       resetForm();
       alert('تم حفظ التطبيق ونشره بنجاح! سيظهر على الموقع خلال لحظات.');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save app:', error);
-      alert(error.message || 'حدث خطأ أثناء الحفظ');
+      alert(error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ');
     } finally {
       setSaving(false);
       setUploadProgress(0);
