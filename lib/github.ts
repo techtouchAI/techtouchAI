@@ -177,7 +177,12 @@ export const createRelease = async (config: GithubConfig, tag: string, name: str
   }
 };
 
-export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string, file: File, fileName: string, onProgress?: (progress: number) => void): Promise<any> => {
+export interface UploadedAsset {
+  browser_download_url: string;
+  [key: string]: unknown;
+}
+
+export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string, file: File, fileName: string, onProgress?: (progress: number) => void): Promise<UploadedAsset> => {
   const cleanUrl = uploadUrl.split('{')[0];
   const url = `${cleanUrl}?name=${encodeURIComponent(fileName)}`;
   
