@@ -31,9 +31,17 @@ const encodeBase64 = (str: string) => {
 // Helper to safely decode base64 to utf-8
 const decodeBase64 = (base64: string) => {
   const cleanBase64 = base64.replace(/\n/g, '');
+
+  // Use Buffer if available (Node.js or polyfilled in browser)
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(cleanBase64, 'base64').toString('utf-8');
+  }
+
+  // Fallback for browsers without Buffer
   const binString = atob(cleanBase64);
-  const bytes = new Uint8Array(binString.length);
-  for (let i = 0; i < binString.length; i++) {
+  const len = binString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
     bytes[i] = binString.charCodeAt(i);
   }
   return new TextDecoder().decode(bytes);
