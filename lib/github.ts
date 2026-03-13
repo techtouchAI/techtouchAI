@@ -200,6 +200,7 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
     
     xhr.setRequestHeader('Authorization', `Bearer ${config.token}`);
     xhr.setRequestHeader('Accept', 'application/vnd.github+json');
+    xhr.setRequestHeader('X-GitHub-Api-Version', '2022-11-28');
     xhr.setRequestHeader('Content-Type', contentType);
     
     xhr.upload.onprogress = (event) => {

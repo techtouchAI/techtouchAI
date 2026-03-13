@@ -23,6 +23,7 @@ export default function CMS() {
   
   // Settings Form State
   const [siteName, setSiteName] = useState('');
+  const [siteNameFontSize, setSiteNameFontSize] = useState('text-xl sm:text-2xl');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -60,6 +61,9 @@ export default function CMS() {
       setApps(appsData);
       if (settingsData) {
         setSiteName(settingsData.siteName);
+          if (settingsData.siteNameFontSize) {
+            setSiteNameFontSize(settingsData.siteNameFontSize);
+          }
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -88,8 +92,9 @@ export default function CMS() {
     e.preventDefault();
     setSavingSettings(true);
     try {
-      const newSettings = await saveSiteSettings({ siteName }, logoFile);
+      const newSettings = await saveSiteSettings({ siteName, siteNameFontSize }, logoFile);
       setSiteName(newSettings.siteName);
+      if (newSettings.siteNameFontSize) setSiteNameFontSize(newSettings.siteNameFontSize);
       alert('تم حفظ الإعدادات بنجاح');
       setLogoFile(null);
     } catch (error) {
@@ -269,15 +274,31 @@ export default function CMS() {
             </h2>
 
             <form onSubmit={handleSettingsSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم الموقع (اختياري)</label>
-                <input
-                  type="text"
-                  value={siteName}
-                  onChange={(e) => setSiteName(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="اتركه فارغاً لإخفائه"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم الموقع (اختياري)</label>
+                  <input
+                    type="text"
+                    value={siteName}
+                    onChange={(e) => setSiteName(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="مثال: متجر التطبيقات الذكية"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">حجم الخط</label>
+                  <select
+                    value={siteNameFontSize}
+                    onChange={(e) => setSiteNameFontSize(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  >
+                    <option value="text-sm sm:text-base">صغير</option>
+                    <option value="text-lg sm:text-xl">متوسط</option>
+                    <option value="text-xl sm:text-2xl">كبير (الافتراضي)</option>
+                    <option value="text-2xl sm:text-3xl">كبير جداً</option>
+                    <option value="text-3xl sm:text-4xl">ضخم</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -374,8 +395,8 @@ export default function CMS() {
                       onChange={(e) => {
                         if (e.target.files?.[0]) {
                           const file = e.target.files[0];
-                          if (file.size > 10 * 1024 * 1024) {
-                            alert('حجم الصورة كبير جداً (أكثر من 10MB). يرجى اختيار صورة أصغر لضمان سرعة الرفع.');
+                          if (file.size > 5 * 1024 * 1024) {
+                            alert('يجب أن لا يتجاوز حجم الصورة 5 ميجابايت (5MB).');
                             e.target.value = '';
                             return;
                           }
@@ -426,10 +447,14 @@ export default function CMS() {
                       onChange={(e) => {
                         if (e.target.files) {
                           const files = Array.from(e.target.files);
-                          const largeFiles = files.filter(f => f.size > 50 * 1024 * 1024);
-                          if (largeFiles.length > 0) {
-                              alert('لقد اخترت ملفات كبيرة. الرفع قد يستغرق وقتاً طويلاً، يرجى التأكد من عدم إغلاق الصفحة واستقرار الإنترنت لضمان نجاح العملية.');
+                          const oversizedFiles = files.filter(f => f.size > 25 * 1024 * 1024);
+
+                          if (oversizedFiles.length > 0) {
+                            alert('يجب أن لا يتجاوز حجم الملف الواحد 25 ميجابايت (25MB) كحد أقصى.');
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                            return;
                           }
+
                           const newFiles = files.map(f => ({ file: f, customName: f.name }));
                           setAppFiles(newFiles);
                         }
