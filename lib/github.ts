@@ -8,8 +8,13 @@ export interface GithubConfig {
 
 export const getGithubConfig = (): GithubConfig | null => {
   if (typeof window === 'undefined') return null;
-  const config = localStorage.getItem('github_config');
-  return config ? JSON.parse(config) : null;
+  try {
+    const config = localStorage.getItem('github_config');
+    return config ? JSON.parse(config) : null;
+  } catch (error) {
+    console.error('Error parsing github_config from localStorage:', error);
+    return null;
+  }
 };
 
 export const saveGithubConfig = (config: GithubConfig) => {
