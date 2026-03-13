@@ -19,6 +19,8 @@ export interface AppItem {
 export interface SiteSettings {
   siteName: string;
   siteLogoPath: string;
+  titleFontSize?: number;
+  headerFontSize?: number;
 }
 
 // Helper to convert File to Base64

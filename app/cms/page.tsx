@@ -23,6 +23,8 @@ export default function CMS() {
   
   // Settings Form State
   const [siteName, setSiteName] = useState('');
+  const [titleFontSize, setTitleFontSize] = useState<number>(20);
+  const [headerFontSize, setHeaderFontSize] = useState<number>(16);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -60,6 +62,8 @@ export default function CMS() {
       setApps(appsData);
       if (settingsData) {
         setSiteName(settingsData.siteName);
+        if (settingsData.titleFontSize) setTitleFontSize(settingsData.titleFontSize);
+        if (settingsData.headerFontSize) setHeaderFontSize(settingsData.headerFontSize);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -88,8 +92,14 @@ export default function CMS() {
     e.preventDefault();
     setSavingSettings(true);
     try {
-      const newSettings = await saveSiteSettings({ siteName }, logoFile);
+      const newSettings = await saveSiteSettings({ 
+        siteName, 
+        titleFontSize, 
+        headerFontSize 
+      }, logoFile);
       setSiteName(newSettings.siteName);
+      if (newSettings.titleFontSize) setTitleFontSize(newSettings.titleFontSize);
+      if (newSettings.headerFontSize) setHeaderFontSize(newSettings.headerFontSize);
       alert('تم حفظ الإعدادات بنجاح');
       setLogoFile(null);
     } catch (error) {
@@ -171,6 +181,7 @@ export default function CMS() {
           <button
             onClick={() => setActiveTab('github')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'github' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+            style={{ fontSize: `${headerFontSize}px` }}
           >
             <Github className="w-5 h-5" />
             إعدادات الاتصال
@@ -179,6 +190,7 @@ export default function CMS() {
             onClick={() => isGithubConfigured && setActiveTab('settings')}
             disabled={!isGithubConfigured}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'settings' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'} ${!isGithubConfigured && 'opacity-50 cursor-not-allowed'}`}
+            style={{ fontSize: `${headerFontSize}px` }}
           >
             <SettingsIcon className="w-5 h-5" />
             المظهر والإعدادات
@@ -187,6 +199,7 @@ export default function CMS() {
             onClick={() => isGithubConfigured && setActiveTab('apps')}
             disabled={!isGithubConfigured}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'apps' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'} ${!isGithubConfigured && 'opacity-50 cursor-not-allowed'}`}
+            style={{ fontSize: `${headerFontSize}px` }}
           >
             <LayoutGrid className="w-5 h-5" />
             إدارة التطبيقات
@@ -200,7 +213,7 @@ export default function CMS() {
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Github className="w-8 h-8 text-gray-900 dark:text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">ربط المستودع</h2>
+              <h2 className="font-bold text-gray-900 dark:text-white mb-2" style={{ fontSize: `${headerFontSize}px` }}>ربط المستودع</h2>
               <p className="text-gray-500 dark:text-gray-400">قم بربط لوحة التحكم بمستودع GitHub الخاص بك لحفظ الملفات والبيانات مباشرة.</p>
             </div>
 
@@ -263,7 +276,7 @@ export default function CMS() {
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="max-w-2xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 sm:p-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <h2 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2" style={{ fontSize: `${headerFontSize}px` }}>
               <SettingsIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
               المظهر والإعدادات
             </h2>
@@ -278,6 +291,31 @@ export default function CMS() {
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   placeholder="اتركه فارغاً لإخفائه"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">حجم خط العناوين (px)</label>
+                  <input
+                    type="number"
+                    value={titleFontSize}
+                    onChange={(e) => setTitleFontSize(parseInt(e.target.value) || 24)}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    min="12"
+                    max="100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">حجم خط الإعدادات (px)</label>
+                  <input
+                    type="number"
+                    value={headerFontSize}
+                    onChange={(e) => setHeaderFontSize(parseInt(e.target.value) || 18)}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    min="12"
+                    max="100"
+                  />
+                </div>
               </div>
 
               <div>
@@ -324,7 +362,7 @@ export default function CMS() {
             {/* Form Section */}
             <div className="lg:col-span-1">
               <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 sticky top-24">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                <h2 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2" style={{ fontSize: `${headerFontSize}px` }}>
                   {editingId ? <Edit2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> : <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
                   {editingId ? 'تعديل التطبيق' : 'إضافة تطبيق جديد'}
                 </h2>
@@ -471,7 +509,7 @@ export default function CMS() {
             {/* List Section */}
             <div className="lg:col-span-2">
               <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                <h2 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2" style={{ fontSize: `${headerFontSize}px` }}>
                   <LayoutGrid className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   التطبيقات المرفوعة ({apps.length})
                 </h2>

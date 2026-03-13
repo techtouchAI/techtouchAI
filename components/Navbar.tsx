@@ -73,7 +73,7 @@ export default function Navbar() {
                 <LayoutGrid className="w-6 h-6" />
               )}
               {settings?.siteName && (
-                <span>{settings.siteName}</span>
+                <span style={{ fontSize: settings.titleFontSize ? `${settings.titleFontSize}px` : undefined }}>{settings.siteName}</span>
               )}
             </Link>
           </div>
