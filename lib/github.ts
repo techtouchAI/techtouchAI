@@ -6,14 +6,90 @@ export interface GithubConfig {
   token: string;
 }
 
+// Simple XOR encryption to obfuscate localStorage
+const SECRET_KEY = "ai-studio-applet-secure-key";
+
+const encryptConfig = (text: string): string => {
+  try {
+    const textBytes = new TextEncoder().encode(text);
+    const keyBytes = new TextEncoder().encode(SECRET_KEY);
+    const xorBytes = new Uint8Array(textBytes.length);
+
+    for (let i = 0; i < textBytes.length; i++) {
+      xorBytes[i] = textBytes[i] ^ keyBytes[i % keyBytes.length];
+    }
+
+    let binString = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < xorBytes.length; i += chunkSize) {
+      const chunk = xorBytes.subarray(i, i + chunkSize);
+      binString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    return btoa(binString);
+  } catch (error) {
+    console.error("Encryption error:", error);
+    return "";
+  }
+};
+
+const decryptConfig = (base64: string): string => {
+  try {
+    const cleanBase64 = base64.replace(/\n/g, '');
+    const binString = atob(cleanBase64);
+    const bytes = new Uint8Array(binString.length);
+    for (let i = 0; i < binString.length; i++) {
+      bytes[i] = binString.charCodeAt(i);
+    }
+
+    const keyBytes = new TextEncoder().encode(SECRET_KEY);
+    const textBytes = new Uint8Array(bytes.length);
+
+    for (let i = 0; i < bytes.length; i++) {
+      textBytes[i] = bytes[i] ^ keyBytes[i % keyBytes.length];
+    }
+
+    return new TextDecoder().decode(textBytes);
+  } catch (error) {
+    console.error("Decryption error:", error);
+    return "";
+  }
+};
+
 export const getGithubConfig = (): GithubConfig | null => {
   if (typeof window === 'undefined') return null;
-  const config = localStorage.getItem('github_config');
-  return config ? JSON.parse(config) : null;
+  const configStr = localStorage.getItem('github_config');
+  if (!configStr) return null;
+
+  try {
+    // If it starts with { it might be old plain JSON config.
+    if (configStr.trim().startsWith('{')) {
+      const config = JSON.parse(configStr);
+      // Migrate to encrypted format transparently
+      saveGithubConfig(config);
+      return config;
+    }
+
+    // Try to decrypt
+    const decryptedStr = decryptConfig(configStr);
+    if (!decryptedStr) return null;
+
+    return JSON.parse(decryptedStr);
+  } catch (error) {
+    console.error("Error retrieving GitHub config from localStorage:", error);
+    return null;
+  }
 };
 
 export const saveGithubConfig = (config: GithubConfig) => {
-  localStorage.setItem('github_config', JSON.stringify(config));
+  try {
+    const configStr = JSON.stringify(config);
+    const encryptedStr = encryptConfig(configStr);
+    if (encryptedStr) {
+      localStorage.setItem('github_config', encryptedStr);
+    }
+  } catch (error) {
+    console.error("Error saving GitHub config to localStorage:", error);
+  }
 };
 
 // Helper to safely encode utf-8 to base64
