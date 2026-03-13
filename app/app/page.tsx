@@ -35,7 +35,9 @@ function AppDetailsContent() {
         if (!res.ok && res.status === 404) {
           url = getRawGithubUrl(path, 'master');
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Failed to verify main branch URL:', e);
+      }
     }
     const a = document.createElement('a');
     a.href = url;
