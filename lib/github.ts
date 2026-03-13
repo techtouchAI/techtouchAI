@@ -60,8 +60,14 @@ export const uploadToGithub = async (
       if (!Array.isArray(data) && data.type === 'file') {
         sha = data.sha;
       }
-    } catch (error: any) {
-      if (error.status !== 404) throw error;
+    } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'status' in error && error.status !== 404) {
+        throw error;
+      } else if (typeof error === 'object' && error !== null && !('status' in error)) {
+        throw error;
+      } else if (typeof error !== 'object' || error === null) {
+        throw error;
+      }
     }
 
     // Create or update file
@@ -75,16 +81,19 @@ export const uploadToGithub = async (
     });
 
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('GitHub API Error:', error);
-    if (error.status === 404) {
-      throw new Error(`خطأ 404 (المستودع غير موجود): تأكد من صحة اسم المستخدم (${config.username}) واسم المستودع (${config.repo}) في الإعدادات، وتأكد أن الـ Token يمتلك صلاحية "repo".`);
-    } else if (error.status === 403) {
-      throw new Error(`خطأ 403 (مرفوض): الـ Token لا يمتلك الصلاحيات الكافية. يرجى التأكد من منحه صلاحية "repo" كاملة.`);
-    } else if (error.status === 409) {
-      throw new Error(`خطأ 409 (تعارض): المستودع فارغ تماماً. يرجى إنشاء ملف واحد على الأقل (مثل README.md) في المستودع أولاً.`);
+    if (typeof error === 'object' && error !== null && 'status' in error) {
+      if (error.status === 404) {
+        throw new Error(`خطأ 404 (المستودع غير موجود): تأكد من صحة اسم المستخدم (${config.username}) واسم المستودع (${config.repo}) في الإعدادات، وتأكد أن الـ Token يمتلك صلاحية "repo".`);
+      } else if (error.status === 403) {
+        throw new Error(`خطأ 403 (مرفوض): الـ Token لا يمتلك الصلاحيات الكافية. يرجى التأكد من منحه صلاحية "repo" كاملة.`);
+      } else if (error.status === 409) {
+        throw new Error(`خطأ 409 (تعارض): المستودع فارغ تماماً. يرجى إنشاء ملف واحد على الأقل (مثل README.md) في المستودع أولاً.`);
+      }
     }
-    throw new Error(error.message || 'حدث خطأ غير متوقع أثناء الاتصال بـ GitHub.');
+    const message = error instanceof Error ? error.message : typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'حدث خطأ غير متوقع أثناء الاتصال بـ GitHub.';
+    throw new Error(message);
   }
 };
 
@@ -156,8 +165,14 @@ export const createRelease = async (config: GithubConfig, tag: string, name: str
         tag,
       });
       return data;
-    } catch (e: any) {
-      if (e.status !== 404) throw e;
+    } catch (e: unknown) {
+      if (typeof e === 'object' && e !== null && 'status' in e && e.status !== 404) {
+        throw e;
+      } else if (typeof e === 'object' && e !== null && !('status' in e)) {
+        throw e;
+      } else if (typeof e !== 'object' || e === null) {
+        throw e;
+      }
     }
 
     // If not found, create it
@@ -171,9 +186,10 @@ export const createRelease = async (config: GithubConfig, tag: string, name: str
       prerelease: false,
     });
     return data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create Release Error:', error);
-    throw new Error(`فشل إنشاء الإصدار (Release) في GitHub. تأكد من أن الـ Token يمتلك صلاحية "Releases". التفاصيل: ${error.message}`);
+    const message = error instanceof Error ? error.message : typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'غير معروف';
+    throw new Error(`فشل إنشاء الإصدار (Release) في GitHub. تأكد من أن الـ Token يمتلك صلاحية "Releases". التفاصيل: ${message}`);
   }
 };
 
@@ -225,7 +241,7 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
     }
 
     return await response.json();
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch error during upload:', error);
     throw new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح.");
   }
@@ -251,8 +267,12 @@ export const deleteReleaseByTag = async (config: GithubConfig, tag: string) => {
       repo: config.repo,
       ref: `tags/${tag}`,
     });
-  } catch (error: any) {
-    if (error.status !== 404) {
+  } catch (error: unknown) {
+    if (typeof error === 'object' && error !== null && 'status' in error) {
+      if (error.status !== 404) {
+        console.error('Error deleting release:', error);
+      }
+    } else {
       console.error('Error deleting release:', error);
     }
   }
