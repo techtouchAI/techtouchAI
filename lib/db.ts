@@ -308,7 +308,9 @@ export const getSiteSettings = async (): Promise<SiteSettings | null> => {
         content = await fetchFromGithub(config, 'data/settings.json');
       }
       if (content) return JSON.parse(content);
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to fetch settings from GitHub API, falling back to public data', e);
+    }
   }
 
   let publicData = await fetchPublicData('public/data/settings.json');
