@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getApps, AppItem, getRawGithubUrl } from '@/lib/db';
+import { getApps, AppItem, getRawGithubUrl, isSafeUrl } from '@/lib/db';
 import Navbar from '@/components/Navbar';
 import { Download, Loader2, ArrowRight, File as FileIcon } from 'lucide-react';
 import Link from 'next/link';
@@ -37,6 +37,12 @@ function AppDetailsContent() {
         }
       } catch (e) {}
     }
+
+    if (!isSafeUrl(url)) {
+      console.error('Unsafe URL detected, download aborted:', url);
+      return;
+    }
+
     const a = document.createElement('a');
     a.href = url;
     a.download = name;

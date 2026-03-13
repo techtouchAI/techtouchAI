@@ -1,6 +1,6 @@
 'use client';
 
-import { AppItem, getRawGithubUrl } from '@/lib/db';
+import { AppItem, getRawGithubUrl, isSafeUrl } from '@/lib/db';
 import { Download } from 'lucide-react';
 import Link from 'next/link';
 
@@ -26,6 +26,12 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
         }
       } catch (err) {}
     }
+
+    if (!isSafeUrl(url)) {
+      console.error('Unsafe URL detected, download aborted:', url);
+      return;
+    }
+
     const a = document.createElement('a');
     a.href = url;
     a.download = name;

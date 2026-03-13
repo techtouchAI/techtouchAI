@@ -23,6 +23,35 @@ export interface SiteSettings {
   headerFontSize?: number;
 }
 
+export const isSafeUrl = (url: string): boolean => {
+  try {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return false;
+
+    // Use a dummy base URL to parse relative URLs
+    const parsedUrl = new URL(trimmedUrl, 'http://localhost');
+    const protocol = parsedUrl.protocol.toLowerCase();
+
+    // Block dangerous protocols
+    if (['javascript:', 'data:', 'vbscript:', 'file:'].includes(protocol)) {
+      return false;
+    }
+
+    // Check if it's an absolute URL
+    // URL constructor parses absolute URLs with their own protocol
+    // If it's absolute, it should be http: or https:
+    if (trimmedUrl.includes('://')) {
+      if (!['http:', 'https:'].includes(protocol)) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 // Helper to convert File to Base64 natively (most reliable and performant for browser)
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
