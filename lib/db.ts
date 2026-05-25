@@ -1,4 +1,4 @@
-import { uploadToGithub, fetchFromGithub, deleteFromGithub, createRelease, uploadReleaseAsset, deleteReleaseByTag } from './github';
+import { getGithubConfig, uploadToGithub, fetchFromGithub, deleteFromGithub, createRelease, uploadReleaseAsset, deleteReleaseByTag } from './github';
 
 export interface AppFile {
   path: string;
@@ -53,6 +53,14 @@ export const getRepoInfo = () => {
       }
       const pathParts = pathname.split('/').filter(Boolean);
       repo = pathParts.length > 0 ? pathParts[0] : `${owner}.github.io`;
+    }
+
+    const config = getGithubConfig();
+    if (config) {
+      if (config.username && config.repo) {
+        owner = config.username;
+        repo = config.repo;
+      }
     }
   }
   return { owner, repo };
@@ -132,16 +140,20 @@ export const fetchPublicData = async (path: string) => {
 };
 
 export const getApps = async (): Promise<AppItem[]> => {
-  // Try fetching from the backend API directly (requires BFF setup to work properly)
-  try {
-    let content = await fetchFromGithub('public/data/apps.json');
-    if (!content) content = await fetchFromGithub('data/apps.json');
-    if (content) {
-      const apps = JSON.parse(content) as AppItem[];
-      return apps.sort((a, b) => b.createdAt - a.createdAt);
+  const config = getGithubConfig();
+
+  // If admin is logged in, fetch from GitHub API (Authenticated - 5000 req/hr)
+  if (config) {
+    try {
+      let content = await fetchFromGithub(config, 'public/data/apps.json');
+      if (!content) content = await fetchFromGithub(config, 'data/apps.json');
+      if (content) {
+        const apps = JSON.parse(content) as AppItem[];
+        return apps.sort((a, b) => b.createdAt - a.createdAt);
+      }
+    } catch (e) {
+      console.error('GitHub fetch failed, falling back to public data', e);
     }
-  } catch (e) {
-    console.error('GitHub fetch failed, falling back to public data', e);
   }
 
   // For normal visitors, fetch via the 3-tier real-time system
@@ -156,6 +168,9 @@ export const getApps = async (): Promise<AppItem[]> => {
 };
 
 export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath' | 'filePath' | 'fileName' | 'files'>, imageFile: File | null, appFiles: { file: File, customName: string }[], id?: string, onProgress?: (progress: number) => void): Promise<AppItem[]> => {
+  const config = getGithubConfig();
+  if (!config) throw new Error('GitHub configuration missing');
+
   const appId = id || Date.now().toString();
   const timestamp = Date.now();
   const apps = await getApps();
@@ -167,7 +182,7 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
     const imageExt = imageFile.name.split('.').pop();
     imagePath = `public/data/images/${appId}.${imageExt}`;
     const imageBase64 = await fileToBase64(imageFile);
-    await uploadToGithub(imagePath, imageBase64, `Upload image for app ${appId}`, true);
+    await uploadToGithub(config, imagePath, imageBase64, `Upload image for app ${appId}`, true);
   }
 
   // 2. Upload App Files via Releases API (only if provided)
@@ -175,7 +190,7 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
   if (appFiles.length > 0) {
     try {
       const releaseTag = `app-${appId}`;
-      const release = await createRelease(releaseTag, `Assets for ${app.name}`);
+      const release = await createRelease(config, releaseTag, `Assets for ${app.name}`);
       
       const newUploadedFiles: AppFile[] = [];
       for (let i = 0; i < appFiles.length; i++) {
@@ -183,7 +198,7 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
         const fileExt = file.name.split('.').pop();
         const safeFileName = `${appId}_${i}_${Date.now()}.${fileExt}`;
         
-        const asset = await uploadReleaseAsset(release.upload_url, file, safeFileName, (progress) => {
+        const asset = await uploadReleaseAsset(config, release.upload_url, file, safeFileName, (progress) => {
           if (onProgress) {
             const baseProgress = (i / appFiles.length) * 100;
             const fileProgress = (progress / appFiles.length);
@@ -218,35 +233,38 @@ export const saveApp = async (app: Omit<AppItem, 'id' | 'createdAt' | 'imagePath
   const updatedApps = apps.sort((a, b) => b.createdAt - a.createdAt);
   
   // Save directly to GitHub API
-  await uploadToGithub('public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Update apps.json with ${appId}`);
+  await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Update apps.json with ${appId}`);
   
   return updatedApps;
 };
 
 export const deleteApp = async (id: string): Promise<AppItem[]> => {
+  const config = getGithubConfig();
+  if (!config) throw new Error('GitHub configuration missing');
+
   const apps = await getApps();
   const appToDelete = apps.find(a => a.id === id);
   
   if (appToDelete) {
-    try { await deleteFromGithub(appToDelete.imagePath, `Delete image for app ${id}`); } catch (e) {}
+    try { await deleteFromGithub(config, appToDelete.imagePath, `Delete image for app ${id}`); } catch (e) {}
     if (appToDelete.filePath) {
-      try { await deleteFromGithub(appToDelete.filePath, `Delete file for app ${id}`); } catch (e) {}
+      try { await deleteFromGithub(config, appToDelete.filePath, `Delete file for app ${id}`); } catch (e) {}
     }
     if (appToDelete.files) {
       for (const file of appToDelete.files) {
         if (!file.path.startsWith('http')) {
-          try { await deleteFromGithub(file.path, `Delete file for app ${id}`); } catch (e) {}
+          try { await deleteFromGithub(config, file.path, `Delete file for app ${id}`); } catch (e) {}
         }
       }
     }
     
     // Delete the release and its assets
-    await deleteReleaseByTag(`app-${id}`);
+    await deleteReleaseByTag(config, `app-${id}`);
 
     const updatedApps = apps.filter(a => a.id !== id).sort((a, b) => b.createdAt - a.createdAt);
     
     // Save directly to GitHub API
-    await uploadToGithub('public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Remove app ${id} from apps.json`);
+    await uploadToGithub(config, 'public/data/apps.json', JSON.stringify(updatedApps, null, 2), `Remove app ${id} from apps.json`);
     
     return updatedApps;
   }
@@ -254,12 +272,15 @@ export const deleteApp = async (id: string): Promise<AppItem[]> => {
 };
 
 export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPath'>, logoFile?: File | null): Promise<SiteSettings> => {
+  const config = getGithubConfig();
+  if (!config) throw new Error('GitHub configuration missing');
+
   let logoPath = '';
   if (logoFile) {
     const ext = logoFile.name.split('.').pop();
     logoPath = `public/data/settings/logo.${ext}`;
     const logoBase64 = await fileToBase64(logoFile);
-    await uploadToGithub(logoPath, logoBase64, 'Update site logo', true);
+    await uploadToGithub(config, logoPath, logoBase64, 'Update site logo', true);
   } else {
     const existingSettings = await getSiteSettings();
     logoPath = existingSettings?.siteLogoPath || '';
@@ -270,18 +291,22 @@ export const saveSiteSettings = async (settings: Omit<SiteSettings, 'siteLogoPat
     siteLogoPath: logoPath
   };
 
-  await uploadToGithub('public/data/settings.json', JSON.stringify(newSettings, null, 2), 'Update site settings');
+  await uploadToGithub(config, 'public/data/settings.json', JSON.stringify(newSettings, null, 2), 'Update site settings');
   return newSettings;
 };
 
 export const getSiteSettings = async (): Promise<SiteSettings | null> => {
-  try {
-    let content = await fetchFromGithub('public/data/settings.json');
-    if (!content) {
-      content = await fetchFromGithub('data/settings.json');
-    }
-    if (content) return JSON.parse(content);
-  } catch (e) {}
+  const config = getGithubConfig();
+
+  if (config) {
+    try {
+      let content = await fetchFromGithub(config, 'public/data/settings.json');
+      if (!content) {
+        content = await fetchFromGithub(config, 'data/settings.json');
+      }
+      if (content) return JSON.parse(content);
+    } catch (e) {}
+  }
 
   let publicData = await fetchPublicData('public/data/settings.json');
   if (!publicData) {

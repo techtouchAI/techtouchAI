@@ -1,5 +1,22 @@
 import axios from 'axios';
 
+export interface GithubConfig {
+  username: string;
+  repo: string;
+  token: string;
+}
+
+export const getGithubConfig = (): GithubConfig | null => {
+  if (typeof window === 'undefined') return null;
+  // Use sessionStorage to mitigate XSS risks (cleared on tab close)
+  const config = sessionStorage.getItem('github_config');
+  return config ? JSON.parse(config) : null;
+};
+
+export const saveGithubConfig = (config: GithubConfig) => {
+  sessionStorage.setItem('github_config', JSON.stringify(config));
+};
+
 // Helper to safely encode utf-8 to base64
 const encodeBase64 = (str: string) => {
   const bytes = new TextEncoder().encode(str);
@@ -23,59 +40,99 @@ const decodeBase64 = (base64: string) => {
   return new TextDecoder().decode(bytes);
 };
 
-const getAuthHeaders = () => {
-  let secret = '';
-  if (typeof window !== 'undefined') {
-    secret = localStorage.getItem('admin_secret') || '';
-  }
-  return {
-    'Authorization': `Bearer ${secret}`
-  };
-};
-
 export const uploadToGithub = async (
+  config: GithubConfig,
   path: string,
   content: string, // Base64 encoded content for files, or string for JSON
   message: string,
   isBase64: boolean = false
 ) => {
   try {
-    const response = await axios.post('/api/github/content', {
-      path,
-      content: isBase64 ? content : encodeBase64(content),
+    const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${path}`;
+
+    // Check if file exists to get its sha for updating
+    let sha: string | undefined;
+    try {
+      const getResponse = await axios.get(url, {
+        headers: { Authorization: `Bearer ${config.token}` }
+      });
+      if (getResponse.data && getResponse.data.sha) {
+        sha = getResponse.data.sha;
+      }
+    } catch (error: any) {
+      if (error.response && error.response.status !== 404) {
+        throw error;
+      }
+    }
+
+    const payload = {
       message,
-    }, {
-      headers: getAuthHeaders()
+      content: isBase64 ? content : encodeBase64(content),
+      ...(sha ? { sha } : {})
+    };
+
+    await axios.put(url, payload, {
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        'Content-Type': 'application/json'
+      }
     });
-    return response.data.success;
+
+    return true;
   } catch (error: any) {
     console.error('GitHub API Error (Upload):', error);
-    throw new Error(error.response?.data?.error || 'حدث خطأ غير متوقع أثناء الرفع عبر الخادم.');
+    if (error.response?.status === 404) {
+      throw new Error(`خطأ 404: تأكد من صحة اسم المستخدم (${config.username}) والمستودع (${config.repo}).`);
+    } else if (error.response?.status === 403 || error.response?.status === 401) {
+      throw new Error(`خطأ في الصلاحيات: الـ Token غير صحيح أو يفتقر إلى صلاحية "repo".`);
+    }
+    throw new Error(error.response?.data?.message || 'حدث خطأ أثناء الرفع إلى GitHub.');
   }
 };
 
 export const deleteFromGithub = async (
+  config: GithubConfig,
   path: string,
   message: string
 ) => {
   try {
-    const response = await axios.delete('/api/github/content', {
-      data: { path, message },
-      headers: getAuthHeaders()
+    const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${path}`;
+
+    const getResponse = await axios.get(url, {
+      headers: { Authorization: `Bearer ${config.token}` }
     });
-    return response.data.success;
+
+    if (getResponse.data && getResponse.data.sha) {
+      await axios.delete(url, {
+        headers: { Authorization: `Bearer ${config.token}` },
+        data: {
+          message,
+          sha: getResponse.data.sha
+        }
+      });
+    }
+    return true;
   } catch (error: any) {
+    if (error.response && error.response.status === 404) {
+      return true; // File already gone
+    }
     console.error('GitHub API Error (Delete):', error);
     throw error;
   }
 };
 
-export const fetchFromGithub = async (path: string) => {
+export const fetchFromGithub = async (config: GithubConfig, path: string) => {
   try {
-    const response = await axios.get(`/api/github/content?path=${encodeURIComponent(path)}`, {
-      headers: getAuthHeaders()
+    const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${path}?t=${Date.now()}`;
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      }
     });
-    const data = response.data.data;
+
+    const data = response.data;
     if (!Array.isArray(data) && data.type === 'file' && data.content) {
       return decodeBase64(data.content);
     }
@@ -86,32 +143,64 @@ export const fetchFromGithub = async (path: string) => {
   }
 };
 
-export const createRelease = async (tag: string, name: string) => {
+export const createRelease = async (config: GithubConfig, tag: string, name: string) => {
   try {
-    const response = await axios.post('/api/github/release', {
-      tag,
-      name,
+    // Try to get the release first
+    try {
+      const getResponse = await axios.get(`https://api.github.com/repos/${config.username}/${config.repo}/releases/tags/${tag}`, {
+        headers: { Authorization: `Bearer ${config.token}` }
+      });
+      return getResponse.data;
+    } catch (error: any) {
+      if (error.response && error.response.status !== 404) {
+        throw error;
+      }
+    }
+
+    // If not found, create it
+    const createResponse = await axios.post(`https://api.github.com/repos/${config.username}/${config.repo}/releases`, {
+      tag_name: tag,
+      name: name,
+      body: 'Auto-generated release for app assets.',
+      draft: false,
+      prerelease: false
     }, {
-      headers: getAuthHeaders()
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        Accept: 'application/vnd.github+json'
+      }
     });
-    return response.data.data;
+
+    return createResponse.data;
   } catch (error: any) {
     console.error('Create Release Error:', error);
-    throw new Error(error.response?.data?.error || 'فشل إنشاء الإصدار (Release) عبر الخادم.');
+    throw new Error(error.response?.data?.message || 'فشل إنشاء الإصدار (Release) في GitHub.');
   }
 };
 
-export const uploadReleaseAsset = async (uploadUrl: string, file: File, fileName: string, onProgress?: (progress: number) => void): Promise<any> => {
+export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string, file: File, fileName: string, onProgress?: (progress: number) => void): Promise<any> => {
+  const cleanUrl = uploadUrl.split('{')[0];
+  const url = `${cleanUrl}?name=${encodeURIComponent(fileName)}`;
+
+  let contentType = 'application/octet-stream';
+  if (fileName.toLowerCase().endsWith('.apk')) {
+    contentType = 'application/vnd.android.package-archive';
+  } else if (fileName.toLowerCase().endsWith('.zip')) {
+    contentType = 'application/zip';
+  } else if (fileName.toLowerCase().endsWith('.rar')) {
+    contentType = 'application/x-rar-compressed';
+  } else if (fileName.toLowerCase().endsWith('.exe')) {
+    contentType = 'application/x-msdownload';
+  }
+
   try {
-    const url = `/api/github/asset?uploadUrl=${encodeURIComponent(uploadUrl)}&fileName=${encodeURIComponent(fileName)}`;
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/octet-stream',
-      ...getAuthHeaders()
-    };
-
     const response = await axios.post(url, file, {
-      headers,
+      headers: {
+        'Authorization': `Bearer ${config.token}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': contentType,
+      },
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total && onProgress) {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -123,16 +212,34 @@ export const uploadReleaseAsset = async (uploadUrl: string, file: File, fileName
     return response.data;
   } catch (error: any) {
     console.error('Upload Asset Error:', error);
-    throw new Error(error.response?.data?.error || "حدث خطأ في الشبكة أثناء الرفع عبر الخادم.");
+    let errorMsg = `فشل رفع الملف`;
+    if (error.response?.status === 422) {
+      errorMsg = "هذا الملف موجود بالفعل في هذا الإصدار. يرجى تغيير اسم الملف أو حذف الإصدار القديم.";
+    } else if (error.response?.status === 401 || error.response?.status === 403) {
+      errorMsg = "خطأ في الصلاحيات: تأكد من أن الـ Token لديه صلاحية الوصول الكامل.";
+    }
+    throw new Error(errorMsg);
   }
 };
 
-export const deleteReleaseByTag = async (tag: string) => {
+export const deleteReleaseByTag = async (config: GithubConfig, tag: string) => {
   try {
-    await axios.delete(`/api/github/release?tag=${encodeURIComponent(tag)}`, {
-      headers: getAuthHeaders()
+    const getResponse = await axios.get(`https://api.github.com/repos/${config.username}/${config.repo}/releases/tags/${tag}`, {
+      headers: { Authorization: `Bearer ${config.token}` }
     });
+
+    if (getResponse.data) {
+      await axios.delete(`https://api.github.com/repos/${config.username}/${config.repo}/releases/${getResponse.data.id}`, {
+        headers: { Authorization: `Bearer ${config.token}` }
+      });
+
+      await axios.delete(`https://api.github.com/repos/${config.username}/${config.repo}/git/refs/tags/${tag}`, {
+        headers: { Authorization: `Bearer ${config.token}` }
+      });
+    }
   } catch (error: any) {
-    console.error('Error deleting release:', error);
+    if (error.response && error.response.status !== 404) {
+      console.error('Error deleting release:', error);
+    }
   }
 };
