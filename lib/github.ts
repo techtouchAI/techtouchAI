@@ -1,20 +1,4 @@
-import { Octokit } from 'octokit';
-
-export interface GithubConfig {
-  username: string;
-  repo: string;
-  token: string;
-}
-
-export const getGithubConfig = (): GithubConfig | null => {
-  if (typeof window === 'undefined') return null;
-  const config = localStorage.getItem('github_config');
-  return config ? JSON.parse(config) : null;
-};
-
-export const saveGithubConfig = (config: GithubConfig) => {
-  localStorage.setItem('github_config', JSON.stringify(config));
-};
+import axios from 'axios';
 
 // Helper to safely encode utf-8 to base64
 const encodeBase64 = (str: string) => {
@@ -39,221 +23,116 @@ const decodeBase64 = (base64: string) => {
   return new TextDecoder().decode(bytes);
 };
 
+const getAuthHeaders = () => {
+  let secret = '';
+  if (typeof window !== 'undefined') {
+    secret = localStorage.getItem('admin_secret') || '';
+  }
+  return {
+    'Authorization': `Bearer ${secret}`
+  };
+};
+
 export const uploadToGithub = async (
-  config: GithubConfig,
   path: string,
   content: string, // Base64 encoded content for files, or string for JSON
   message: string,
   isBase64: boolean = false
 ) => {
-  const octokit = new Octokit({ auth: config.token });
-
   try {
-    // Check if file exists to get its sha for updating
-    let sha: string | undefined;
-    try {
-      const { data } = await octokit.rest.repos.getContent({
-        owner: config.username,
-        repo: config.repo,
-        path,
-      });
-      if (!Array.isArray(data) && data.type === 'file') {
-        sha = data.sha;
-      }
-    } catch (error: any) {
-      if (error.status !== 404) throw error;
-    }
-
-    // Create or update file
-    await octokit.rest.repos.createOrUpdateFileContents({
-      owner: config.username,
-      repo: config.repo,
+    const response = await axios.post('/api/github/content', {
       path,
-      message,
       content: isBase64 ? content : encodeBase64(content),
-      sha,
+      message,
+    }, {
+      headers: getAuthHeaders()
     });
-
-    return true;
+    return response.data.success;
   } catch (error: any) {
-    console.error('GitHub API Error:', error);
-    if (error.status === 404) {
-      throw new Error(`خطأ 404 (المستودع غير موجود): تأكد من صحة اسم المستخدم (${config.username}) واسم المستودع (${config.repo}) في الإعدادات، وتأكد أن الـ Token يمتلك صلاحية "repo".`);
-    } else if (error.status === 403) {
-      throw new Error(`خطأ 403 (مرفوض): الـ Token لا يمتلك الصلاحيات الكافية. يرجى التأكد من منحه صلاحية "repo" كاملة.`);
-    } else if (error.status === 409) {
-      throw new Error(`خطأ 409 (تعارض): المستودع فارغ تماماً. يرجى إنشاء ملف واحد على الأقل (مثل README.md) في المستودع أولاً.`);
-    }
-    throw new Error(error.message || 'حدث خطأ غير متوقع أثناء الاتصال بـ GitHub.');
+    console.error('GitHub API Error (Upload):', error);
+    throw new Error(error.response?.data?.error || 'حدث خطأ غير متوقع أثناء الرفع عبر الخادم.');
   }
 };
 
 export const deleteFromGithub = async (
-  config: GithubConfig,
   path: string,
   message: string
 ) => {
-  const octokit = new Octokit({ auth: config.token });
-
   try {
-    // Get file sha
-    const { data } = await octokit.rest.repos.getContent({
-      owner: config.username,
-      repo: config.repo,
-      path,
+    const response = await axios.delete('/api/github/content', {
+      data: { path, message },
+      headers: getAuthHeaders()
     });
-
-    if (!Array.isArray(data) && data.type === 'file') {
-      await octokit.rest.repos.deleteFile({
-        owner: config.username,
-        repo: config.repo,
-        path,
-        message,
-        sha: data.sha,
-      });
-    }
-    return true;
-  } catch (error) {
-    console.error('GitHub API Error:', error);
+    return response.data.success;
+  } catch (error: any) {
+    console.error('GitHub API Error (Delete):', error);
     throw error;
   }
 };
 
-export const fetchFromGithub = async (config: GithubConfig, path: string) => {
-  const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${path}?t=${Date.now()}`;
+export const fetchFromGithub = async (path: string) => {
   try {
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${config.token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'If-None-Match': '',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
-      cache: 'no-store',
+    const response = await axios.get(`/api/github/content?path=${encodeURIComponent(path)}`, {
+      headers: getAuthHeaders()
     });
-    
-    if (res.ok) {
-      const data = await res.json();
-      if (!Array.isArray(data) && data.type === 'file' && data.content) {
-        return decodeBase64(data.content);
-      }
+    const data = response.data.data;
+    if (!Array.isArray(data) && data.type === 'file' && data.content) {
+      return decodeBase64(data.content);
     }
     return null;
-  } catch (error) {
-    console.error('GitHub API Error:', error);
+  } catch (error: any) {
+    console.error('GitHub API Error (Fetch):', error);
     return null;
   }
 };
 
-export const createRelease = async (config: GithubConfig, tag: string, name: string) => {
-  const octokit = new Octokit({ auth: config.token });
+export const createRelease = async (tag: string, name: string) => {
   try {
-    // Try to get the release first
-    try {
-      const { data } = await octokit.rest.repos.getReleaseByTag({
-        owner: config.username,
-        repo: config.repo,
-        tag,
-      });
-      return data;
-    } catch (e: any) {
-      if (e.status !== 404) throw e;
-    }
-
-    // If not found, create it
-    const { data } = await octokit.rest.repos.createRelease({
-      owner: config.username,
-      repo: config.repo,
-      tag_name: tag,
-      name: name,
-      body: 'Auto-generated release for app assets.',
-      draft: false,
-      prerelease: false,
+    const response = await axios.post('/api/github/release', {
+      tag,
+      name,
+    }, {
+      headers: getAuthHeaders()
     });
-    return data;
+    return response.data.data;
   } catch (error: any) {
     console.error('Create Release Error:', error);
-    throw new Error(`فشل إنشاء الإصدار (Release) في GitHub. تأكد من أن الـ Token يمتلك صلاحية "Releases". التفاصيل: ${error.message}`);
+    throw new Error(error.response?.data?.error || 'فشل إنشاء الإصدار (Release) عبر الخادم.');
   }
 };
 
-export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string, file: File, fileName: string, onProgress?: (progress: number) => void): Promise<any> => {
-  const cleanUrl = uploadUrl.split('{')[0];
-  const url = `${cleanUrl}?name=${encodeURIComponent(fileName)}`;
-  
-  // تحديد نوع المحتوى بناءً على الامتداد لتحسين التوافق
-  let contentType = 'application/octet-stream';
-  if (fileName.toLowerCase().endsWith('.apk')) {
-    contentType = 'application/vnd.android.package-archive';
-  } else if (fileName.toLowerCase().endsWith('.zip')) {
-    contentType = 'application/zip';
-  } else if (fileName.toLowerCase().endsWith('.rar')) {
-    contentType = 'application/x-rar-compressed';
-  } else if (fileName.toLowerCase().endsWith('.exe')) {
-    contentType = 'application/x-msdownload';
-  }
-  
+export const uploadReleaseAsset = async (uploadUrl: string, file: File, fileName: string, onProgress?: (progress: number) => void): Promise<any> => {
   try {
-    // استخدام fetch بدلاً من XMLHttpRequest لتجنب مشاكل CORS والشبكة في المتصفحات الحديثة
-    // fetch يعتبر "أفضل ممارسة" (Best Practice) للتعامل مع GitHub API في المتصفح
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.token}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': contentType,
-      },
-      body: file, // fetch يقبل كائن File مباشرة وبكفاءة عالية
-    });
+    const url = `/api/github/asset?uploadUrl=${encodeURIComponent(uploadUrl)}&fileName=${encodeURIComponent(fileName)}`;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Upload Asset Error:', response.status, errorText);
-      let errorMsg = `فشل رفع الملف (${response.status})`;
-      if (response.status === 422) {
-        errorMsg = "هذا الملف موجود بالفعل في هذا الإصدار. يرجى تغيير اسم الملف أو حذف الإصدار القديم.";
-      } else if (response.status === 401 || response.status === 403) {
-        errorMsg = "خطأ في الصلاحيات: تأكد من أن الـ Token لديه صلاحية الوصول الكامل للمستودع (repo).";
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/octet-stream',
+      ...getAuthHeaders()
+    };
+
+    const response = await axios.post(url, file, {
+      headers,
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percentCompleted);
+        }
       }
-      throw new Error(errorMsg);
-    }
+    });
 
-    // محاكاة التقدم لأن fetch لا يدعم onprogress بشكل افتراضي للرفع
-    if (onProgress) {
-      onProgress(100);
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error: any) {
-    console.error('Fetch error during upload:', error);
-    throw new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح.");
+    console.error('Upload Asset Error:', error);
+    throw new Error(error.response?.data?.error || "حدث خطأ في الشبكة أثناء الرفع عبر الخادم.");
   }
 };
 
-export const deleteReleaseByTag = async (config: GithubConfig, tag: string) => {
-  const octokit = new Octokit({ auth: config.token });
+export const deleteReleaseByTag = async (tag: string) => {
   try {
-    const { data: release } = await octokit.rest.repos.getReleaseByTag({
-      owner: config.username,
-      repo: config.repo,
-      tag,
-    });
-    
-    await octokit.rest.repos.deleteRelease({
-      owner: config.username,
-      repo: config.repo,
-      release_id: release.id,
-    });
-
-    await octokit.rest.git.deleteRef({
-      owner: config.username,
-      repo: config.repo,
-      ref: `tags/${tag}`,
+    await axios.delete(`/api/github/release?tag=${encodeURIComponent(tag)}`, {
+      headers: getAuthHeaders()
     });
   } catch (error: any) {
-    if (error.status !== 404) {
-      console.error('Error deleting release:', error);
-    }
+    console.error('Error deleting release:', error);
   }
 };

@@ -2,10 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { getApps, saveApp, deleteApp, AppItem, saveSiteSettings, getSiteSettings, SiteSettings } from '@/lib/db';
-import { getGithubConfig, saveGithubConfig, GithubConfig } from '@/lib/github';
 import Navbar from '@/components/Navbar';
-import { Trash2, Edit2, Plus, Upload, Loader2, Image as ImageIcon, File as FileIcon, LayoutGrid, Github, Settings as SettingsIcon, CheckCircle2 } from 'lucide-react';
-
+import { Trash2, Edit2, Plus, Upload, Loader2, Image as ImageIcon, File as FileIcon, LayoutGrid, Settings as SettingsIcon, CheckCircle2, Lock } from 'lucide-react';
 import { CMSAppImage } from '@/components/CMSAppImage';
 
 export default function CMS() {
@@ -28,24 +26,24 @@ export default function CMS() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // GitHub Config State
-  const [githubConfig, setGithubConfigState] = useState<GithubConfig>({ username: '', repo: '', token: '' });
-  const [isGithubConfigured, setIsGithubConfigured] = useState(false);
-  const [savingGithub, setSavingGithub] = useState(false);
+  // Admin Auth State
+  const [adminSecret, setAdminSecret] = useState('');
+  const [isAdminConfigured, setIsAdminConfigured] = useState(false);
+  const [savingAdmin, setSavingAdmin] = useState(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'apps' | 'settings' | 'github'>('github');
+  const [activeTab, setActiveTab] = useState<'apps' | 'settings' | 'auth'>('auth');
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const config = getGithubConfig();
-    if (config && config.token) {
-      setGithubConfigState(config);
-      setIsGithubConfigured(true);
-      setActiveTab('apps');
+    const secret = localStorage.getItem("admin_secret");
+    if (secret) {
+      setAdminSecret(secret);
+      setIsAdminConfigured(true);
+      setActiveTab("apps");
       loadData();
     } else {
       setLoading(false);
@@ -72,20 +70,14 @@ export default function CMS() {
     }
   };
 
-  const handleGithubSubmit = async (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavingGithub(true);
-    try {
-      saveGithubConfig(githubConfig);
-      setIsGithubConfigured(true);
-      setActiveTab('apps');
-      await loadData();
-    } catch (error: any) {
-      console.error('Failed to save GitHub config:', error);
-      alert(error.message || 'حدث خطأ أثناء حفظ إعدادات GitHub');
-    } finally {
-      setSavingGithub(false);
-    }
+    setSavingAdmin(true);
+    localStorage.setItem('admin_secret', adminSecret);
+    setIsAdminConfigured(true);
+    setActiveTab('apps');
+    await loadData();
+    setSavingAdmin(false);
   };
 
   const handleSettingsSubmit = async (e: React.FormEvent) => {
@@ -179,94 +171,62 @@ export default function CMS() {
         {/* Tabs */}
         <div className="flex space-x-4 space-x-reverse mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">
           <button
-            onClick={() => setActiveTab('github')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'github' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+            onClick={() => setActiveTab('auth')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'auth' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
             style={{ fontSize: `${headerFontSize}px` }}
           >
-            <Github className="w-5 h-5" />
-            إعدادات الاتصال
+            <Lock className="w-5 h-5" />
+            المصادقة
           </button>
           <button
-            onClick={() => isGithubConfigured && setActiveTab('settings')}
-            disabled={!isGithubConfigured}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'settings' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'} ${!isGithubConfigured && 'opacity-50 cursor-not-allowed'}`}
+            onClick={() => isAdminConfigured && setActiveTab('apps')}
+            disabled={!isAdminConfigured}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'apps' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'} ${!isAdminConfigured && 'opacity-50 cursor-not-allowed'}`}
+            style={{ fontSize: `${headerFontSize}px` }}
+          >
+            <LayoutGrid className="w-5 h-5" />
+            التطبيقات
+          </button>
+          <button
+            onClick={() => isAdminConfigured && setActiveTab('settings')}
+            disabled={!isAdminConfigured}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'settings' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'} ${!isAdminConfigured && 'opacity-50 cursor-not-allowed'}`}
             style={{ fontSize: `${headerFontSize}px` }}
           >
             <SettingsIcon className="w-5 h-5" />
             المظهر والإعدادات
           </button>
-          <button
-            onClick={() => isGithubConfigured && setActiveTab('apps')}
-            disabled={!isGithubConfigured}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'apps' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'} ${!isGithubConfigured && 'opacity-50 cursor-not-allowed'}`}
-            style={{ fontSize: `${headerFontSize}px` }}
-          >
-            <LayoutGrid className="w-5 h-5" />
-            إدارة التطبيقات
-          </button>
         </div>
 
-        {/* GitHub Config Tab */}
-        {activeTab === 'github' && (
-          <div className="max-w-2xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 sm:p-8">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Github className="w-8 h-8 text-gray-900 dark:text-white" />
-              </div>
-              <h2 className="font-bold text-gray-900 dark:text-white mb-2" style={{ fontSize: `${headerFontSize}px` }}>ربط المستودع</h2>
-              <p className="text-gray-500 dark:text-gray-400">قم بربط لوحة التحكم بمستودع GitHub الخاص بك لحفظ الملفات والبيانات مباشرة.</p>
-            </div>
-
-            <form onSubmit={handleGithubSubmit} className="space-y-5">
+        {/* Auth Tab */}
+        {activeTab === 'auth' && (
+          <div className="max-w-xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 sm:p-8">
+            <h2 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2" style={{ fontSize: `${headerFontSize}px` }}>
+              <Lock className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              تسجيل الدخول للإدارة
+            </h2>
+            <form onSubmit={handleAdminSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">GitHub Username</label>
-                <input
-                  type="text"
-                  required
-                  value={githubConfig.username}
-                  onChange={(e) => setGithubConfigState({...githubConfig, username: e.target.value})}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="مثال: techtouchai"
-                  dir="ltr"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository Name</label>
-                <input
-                  type="text"
-                  required
-                  value={githubConfig.repo}
-                  onChange={(e) => setGithubConfigState({...githubConfig, repo: e.target.value})}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="مثال: techtouchAI"
-                  dir="ltr"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token (Repo Scope)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الرقم السري للإدارة (Admin Password)</label>
                 <input
                   type="password"
                   required
-                  value={githubConfig.token}
-                  onChange={(e) => setGithubConfigState({...githubConfig, token: e.target.value})}
+                  value={adminSecret}
+                  onChange={(e) => setAdminSecret(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  placeholder="أدخل الرقم السري للوحة التحكم"
                   dir="ltr"
                 />
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  احصل على Token من إعدادات حسابك في GitHub (Developer settings &gt; Personal access tokens &gt; Tokens Classic). 
-                  <strong className="text-indigo-600 dark:text-indigo-400 block mt-1">يجب اختيار صلاحية `repo` (Full control of private repositories) لضمان عمل الرفع بشكل مطلق وبدون قيود.</strong>
-                </p>
               </div>
 
               <div className="pt-4">
                 <button
                   type="submit"
-                  disabled={savingGithub}
+                  disabled={savingAdmin}
                   className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-3 rounded-xl font-medium hover:bg-gray-800 dark:hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
                 >
-                  {savingGithub ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                  حفظ واتصال
+                  {savingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                  تسجيل الدخول
                 </button>
               </div>
             </form>
