@@ -5,6 +5,7 @@ import { getApps, saveApp, deleteApp, AppItem, saveSiteSettings, getSiteSettings
 import { getGithubConfig, saveGithubConfig, GithubConfig } from '@/lib/github';
 import Navbar from '@/components/Navbar';
 import { Trash2, Edit2, Plus, Upload, Loader2, Image as ImageIcon, File as FileIcon, LayoutGrid, Github, Settings as SettingsIcon, CheckCircle2 } from 'lucide-react';
+
 import { CMSAppImage } from '@/components/CMSAppImage';
 
 export default function CMS() {
@@ -201,32 +202,36 @@ export default function CMS() {
             style={{ fontSize: `${headerFontSize}px` }}
           >
             <LayoutGrid className="w-5 h-5" />
-            التطبيقات
+            إدارة التطبيقات
           </button>
         </div>
 
         {/* GitHub Config Tab */}
         {activeTab === 'github' && (
-          <div className="max-w-xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 sm:p-8">
-            <h2 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2" style={{ fontSize: `${headerFontSize}px` }}>
-              <Github className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              الاتصال بحساب GitHub
-            </h2>
-            <form onSubmit={handleGithubSubmit} className="space-y-6">
+          <div className="max-w-2xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 sm:p-8">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Github className="w-8 h-8 text-gray-900 dark:text-white" />
+              </div>
+              <h2 className="font-bold text-gray-900 dark:text-white mb-2" style={{ fontSize: `${headerFontSize}px` }}>ربط المستودع</h2>
+              <p className="text-gray-500 dark:text-gray-400">قم بربط لوحة التحكم بمستودع GitHub الخاص بك لحفظ الملفات والبيانات مباشرة.</p>
+            </div>
+
+            <form onSubmit={handleGithubSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم المستخدم (Username)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">GitHub Username</label>
                 <input
                   type="text"
                   required
                   value={githubConfig.username}
                   onChange={(e) => setGithubConfigState({...githubConfig, username: e.target.value})}
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="مثال: techtouchAI"
+                  placeholder="مثال: techtouchai"
                   dir="ltr"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم المستودع (Repository)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository Name</label>
                 <input
                   type="text"
                   required
@@ -250,7 +255,7 @@ export default function CMS() {
                 />
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   احصل على Token من إعدادات حسابك في GitHub (Developer settings &gt; Personal access tokens &gt; Tokens Classic).
-                  <strong className="text-indigo-600 dark:text-indigo-400 block mt-1">يجب اختيار صلاحية `repo` لضمان عمل الرفع بشكل مطلق وبدون قيود. هذا الرمز يُحفظ الآن في Session Storage بأمان وسيُحذف فور إغلاق المتصفح.</strong>
+                  <strong className="text-indigo-600 dark:text-indigo-400 block mt-1">يجب اختيار صلاحية `repo` (Full control of private repositories) لضمان عمل الرفع بشكل مطلق وبدون قيود.</strong>
                 </p>
               </div>
 

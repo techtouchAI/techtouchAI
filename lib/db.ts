@@ -55,12 +55,15 @@ export const getRepoInfo = () => {
       repo = pathParts.length > 0 ? pathParts[0] : `${owner}.github.io`;
     }
 
-    const config = getGithubConfig();
-    if (config) {
-      if (config.username && config.repo) {
-        owner = config.username;
-        repo = config.repo;
-      }
+    const configStr = localStorage.getItem('github_config');
+    if (configStr) {
+      try {
+        const config = JSON.parse(configStr);
+        if (config.username && config.repo) {
+          owner = config.username;
+          repo = config.repo;
+        }
+      } catch (e) {}
     }
   }
   return { owner, repo };
