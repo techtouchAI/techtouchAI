@@ -23,14 +23,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // فرض استخدام 'export' لـ GitHub Pages للتصدير الثابت
-  output: 'export',
+  // استخدام 'export' لـ GitHub Pages و 'standalone' لبيئة التطوير الحالية
+  output: isGithubPages ? 'export' : 'standalone',
   // تعيين المسار الأساسي ليتوافق مع اسم المستودع على GitHub
   ...(isGithubPages ? { basePath: '/techtouchAI' } : {}),
   transpilePackages: ['motion'],
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
-    // Do not modify—file watching is disabled to prevent flickering during agent edits.
+    // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
     if (dev && process.env.DISABLE_HMR === 'true') {
       config.watchOptions = {
         ignored: /.*/,
