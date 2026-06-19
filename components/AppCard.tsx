@@ -12,7 +12,8 @@ interface AppCardProps {
 export default function AppCard({ app, isSingleApp }: AppCardProps) {
   const imageUrl = getRawGithubUrl(app.imagePath);
 
-  const files = app.files || (app.filePath && app.fileName ? [{ path: app.filePath, name: app.fileName }] : []);
+  // Copy the array to avoid mutating the original prop during render
+  const files = app.files ? [...app.files] : (app.filePath && app.fileName ? [{ path: app.filePath, name: app.fileName }] : []);
 
   if (app.githubUrl) {
     // Add the direct github url as a file if it exists
