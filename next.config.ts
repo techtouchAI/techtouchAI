@@ -1,8 +1,5 @@
 import type {NextConfig} from 'next';
 
-// للتحقق مما إذا كان البناء يتم لصالح GitHub Pages
-const isGithubPages = process.env.GITHUB_ACTIONS === 'true' || process.env.GITHUB_PAGES === 'true';
-
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   eslint: {
@@ -13,7 +10,7 @@ const nextConfig: NextConfig = {
   },
   // Allow access to remote image placeholder.
   images: {
-    unoptimized: true, // مطلوب لـ GitHub Pages
+    unoptimized: true, // Required for static HTML export
     remotePatterns: [
       {
         protocol: 'https',
@@ -23,10 +20,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // استخدام 'export' لـ GitHub Pages و 'standalone' لبيئة التطوير الحالية
-  output: isGithubPages ? 'export' : 'standalone',
-  // تعيين المسار الأساسي ليتوافق مع اسم المستودع على GitHub
-  ...(isGithubPages ? { basePath: '/techtouchAI' } : {}),
+  // Explicitly force static HTML export for GitHub Pages deployment
+  output: 'export',
+  // Set basePath conditionally based on environment for GitHub Pages
+  ...(process.env.GITHUB_ACTIONS === 'true' || process.env.GITHUB_PAGES === 'true' ? { basePath: '/techtouchAI' } : {}),
   transpilePackages: ['motion'],
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
