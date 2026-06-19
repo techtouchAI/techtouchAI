@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import { Trash2, Edit2, Plus, Upload, Loader2, Image as ImageIcon, File as FileIcon, LayoutGrid, Github, Settings as SettingsIcon, CheckCircle2 } from 'lucide-react';
 
 import { CMSAppImage } from '@/components/CMSAppImage';
+import { convertGithubUrlToRaw } from '@/lib/githubParser';
 
 export default function CMS() {
   const [apps, setApps] = useState<AppItem[]>([]);
@@ -20,6 +21,8 @@ export default function CMS() {
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [appFiles, setAppFiles] = useState<{ file: File, customName: string }[]>([]);
+  const [githubUrl, setGithubUrl] = useState('');
+  const [githubUrlError, setGithubUrlError] = useState('');
   
   // Settings Form State
   const [siteName, setSiteName] = useState('');
@@ -112,17 +115,28 @@ export default function CMS() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setGithubUrlError('');
+
     if (!name) return;
-    if (!editingId && (!imageFile || appFiles.length === 0)) {
-      alert('يرجى اختيار صورة وملف واحد على الأقل للتطبيق');
+    if (!editingId && (!imageFile || (appFiles.length === 0 && !githubUrl))) {
+      alert('يرجى اختيار صورة وملف واحد على الأقل للتطبيق (أو إدخال رابط GitHub مباشر)');
       return;
+    }
+
+    let parsedGithubUrl = undefined;
+    if (githubUrl) {
+      parsedGithubUrl = convertGithubUrlToRaw(githubUrl);
+      if (!parsedGithubUrl) {
+        setGithubUrlError('الرابط المدخل غير صالح. يرجى إدخال رابط تحميل مباشر صالح من GitHub (مثل مسار ملف أو رابط قسم الإصدارات).');
+        return;
+      }
     }
 
     setSaving(true);
     setUploadProgress(0);
     try {
       const updatedApps = await saveApp(
-        { name, description }, 
+        { name, description, githubUrl: parsedGithubUrl || undefined },
         imageFile, 
         appFiles, 
         editingId || undefined,
@@ -144,6 +158,8 @@ export default function CMS() {
     setEditingId(app.id);
     setName(app.name);
     setDescription(app.description || '');
+    setGithubUrl(app.githubUrl || '');
+    setGithubUrlError('');
     setImageFile(null);
     setAppFiles([]);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -165,6 +181,8 @@ export default function CMS() {
     setEditingId(null);
     setName('');
     setDescription('');
+    setGithubUrl('');
+    setGithubUrlError('');
     setImageFile(null);
     setAppFiles([]);
     if (imageInputRef.current) imageInputRef.current.value = '';
@@ -424,7 +442,23 @@ export default function CMS() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ملفات التطبيق *</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">رابط تحميل مباشر من GitHub (اختياري)</label>
+                    <input
+                      type="url"
+                      value={githubUrl}
+                      onChange={(e) => {
+                        setGithubUrl(e.target.value);
+                        if (githubUrlError) setGithubUrlError('');
+                      }}
+                      className={`w-full px-4 py-2 bg-white dark:bg-gray-900 border ${githubUrlError ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 dark:border-gray-700 focus:ring-indigo-500 focus:border-indigo-500'} text-gray-900 dark:text-white rounded-xl focus:ring-2 outline-none transition-all`}
+                      placeholder="https://github.com/user/repo/blob/main/file.apk"
+                      dir="ltr"
+                    />
+                    {githubUrlError && <p className="mt-1 text-sm text-red-500">{githubUrlError}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">أو رفع ملفات التطبيق من الجهاز</label>
                     <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-700 border-dashed rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors cursor-pointer bg-gray-50 dark:bg-gray-800" onClick={() => fileInputRef.current?.click()}>
                       <div className="space-y-1 text-center">
                         <FileIcon className="mx-auto h-12 w-12 text-gray-400" />
