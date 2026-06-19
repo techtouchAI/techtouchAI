@@ -14,6 +14,11 @@ export default function AppCard({ app, isSingleApp }: AppCardProps) {
 
   const files = app.files || (app.filePath && app.fileName ? [{ path: app.filePath, name: app.fileName }] : []);
 
+  if (app.githubUrl) {
+    // Add the direct github url as a file if it exists
+    files.push({ path: app.githubUrl, name: 'تحميل مباشر' });
+  }
+
   const handleDownload = async (e: React.MouseEvent, path: string, name: string) => {
     e.preventDefault();
     let url = path;

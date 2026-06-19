@@ -13,6 +13,7 @@ export interface AppItem {
   filePath?: string;
   fileName?: string;
   files?: AppFile[];
+  githubUrl?: string;
   createdAt: number;
 }
 
