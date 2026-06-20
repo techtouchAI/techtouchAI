@@ -21,8 +21,11 @@ const nextConfig = {
   },
   // Explicitly force static HTML export for GitHub Pages deployment
   output: 'export',
-  // Set basePath conditionally based on environment for GitHub Pages
-  ...(process.env.GITHUB_ACTIONS === 'true' || process.env.GITHUB_PAGES === 'true' ? { basePath: '/techtouchAI' } : {}),
+  // Set basePath and assetPrefix conditionally based on environment for GitHub Pages
+  ...(process.env.GITHUB_REPOSITORY ? {
+    basePath: '/' + process.env.GITHUB_REPOSITORY.split('/')[1],
+    assetPrefix: '/' + process.env.GITHUB_REPOSITORY.split('/')[1],
+  } : {}),
   transpilePackages: ['motion'],
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
