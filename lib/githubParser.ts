@@ -3,6 +3,7 @@ export function convertGithubUrlToRaw(url: string): string | null {
 
   try {
     const parsedUrl = new URL(url.trim());
+    if (parsedUrl.protocol !== 'https:') return null;
 
     if (parsedUrl.hostname === 'raw.githubusercontent.com') {
       return parsedUrl.toString();
