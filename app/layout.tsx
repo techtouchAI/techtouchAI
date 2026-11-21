@@ -1,12 +1,7 @@
 import type {Metadata} from 'next';
-import { Cairo } from 'next/font/google';
 import Script from 'next/script';
-import './globals.css'; // Global styles
-
-const cairo = Cairo({
-  subsets: ['arabic', 'latin'],
-  variable: '--font-cairo',
-});
+import '@fontsource-variable/cairo';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'تطبيقات للشاشات',
@@ -15,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="ar" dir="rtl" className={cairo.variable}>
+    <html lang="ar" dir="rtl">
       <head>
         <Script async src="https://www.googletagmanager.com/gtag/js?id=G-TR55PX6G95" strategy="afterInteractive" />
         <Script

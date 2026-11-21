@@ -4,14 +4,16 @@ import { useEffect, useState, useRef } from 'react';
 import { getApps, saveApp, deleteApp, AppItem, saveSiteSettings, getSiteSettings, SiteSettings } from '@/lib/db';
 import { getGithubConfig, saveGithubConfig, GithubConfig } from '@/lib/github';
 import Navbar from '@/components/Navbar';
-import { Trash2, Edit2, Plus, Upload, Loader2, Image as ImageIcon, File as FileIcon, LayoutGrid, Github, Settings as SettingsIcon, CheckCircle2 } from 'lucide-react';
-
+import { Trash2, Edit2, Plus, Loader2, Image as ImageIcon, File as FileIcon, LayoutGrid, Github, Settings as SettingsIcon, CheckCircle2, X } from 'lucide-react';
 import { CMSAppImage } from '@/components/CMSAppImage';
 import { convertGithubUrlToRaw } from '@/lib/githubParser';
+import { getAppFiles } from '@/lib/appFiles';
+import { formatFileSize, isWithinGithubReleaseAssetCount, isWithinGithubReleaseLimit, MAX_APP_IMAGE_BYTES, MAX_GITHUB_RELEASE_ASSET_COUNT } from '@/lib/uploadUtils';
 
 export default function CMS() {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   
@@ -20,7 +22,9 @@ export default function CMS() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [appFiles, setAppFiles] = useState<{ file: File, customName: string }[]>([]);
+  const [imageSelectionError, setImageSelectionError] = useState('');
+  const [appFiles, setAppFiles] = useState<{ file: File; customName: string }[]>([]);
+  const [fileSelectionError, setFileSelectionError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [githubUrlError, setGithubUrlError] = useState('');
   
@@ -57,19 +61,25 @@ export default function CMS() {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const [appsData, settingsData] = await Promise.all([
+      const [appsResult, settingsResult] = await Promise.allSettled([
         getApps(),
-        getSiteSettings()
+        getSiteSettings(),
       ]);
-      setApps(appsData);
-      if (settingsData) {
-        setSiteName(settingsData.siteName);
-        if (settingsData.titleFontSize) setTitleFontSize(settingsData.titleFontSize);
-        if (settingsData.headerFontSize) setHeaderFontSize(settingsData.headerFontSize);
+      if (appsResult.status === 'rejected') throw appsResult.reason;
+
+      setApps(appsResult.value);
+      if (settingsResult.status === 'fulfilled' && settingsResult.value) {
+        setSiteName(settingsResult.value.siteName);
+        if (settingsResult.value.titleFontSize) setTitleFontSize(settingsResult.value.titleFontSize);
+        if (settingsResult.value.headerFontSize) setHeaderFontSize(settingsResult.value.headerFontSize);
+      } else if (settingsResult.status === 'rejected') {
+        console.warn('Failed to load site settings; app list is still available:', settingsResult.reason);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -117,17 +127,29 @@ export default function CMS() {
     e.preventDefault();
     setGithubUrlError('');
 
-    if (!name) return;
-    if (!editingId && (!imageFile || (appFiles.length === 0 && !githubUrl))) {
-      alert('يرجى اختيار صورة وملف واحد على الأقل للتطبيق (أو إدخال رابط GitHub مباشر)');
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      alert('يرجى إدخال اسم التطبيق.');
+      return;
+    }
+    if (!editingId && (!imageFile || (appFiles.length === 0 && !githubUrl.trim()))) {
+      alert('يرجى اختيار صورة وملف واحد على الأقل للتطبيق (أو إدخال رابط GitHub مباشر).');
+      return;
+    }
+    if (appFiles.some(({ file }) => !isWithinGithubReleaseLimit(file.size))) {
+      setFileSelectionError('يجب أن يكون كل ملف أصغر من 2 GiB وفق حد GitHub Releases.');
+      return;
+    }
+    if (!isWithinGithubReleaseAssetCount(appFiles.length)) {
+      setFileSelectionError('يسمح GitHub بما يصل إلى 1000 أصل في الإصدار الواحد. أزل بعض الملفات قبل الرفع.');
       return;
     }
 
-    let parsedGithubUrl = undefined;
-    if (githubUrl) {
-      parsedGithubUrl = convertGithubUrlToRaw(githubUrl);
+    let parsedGithubUrl: string | null = null;
+    if (githubUrl.trim()) {
+      parsedGithubUrl = convertGithubUrlToRaw(githubUrl.trim());
       if (!parsedGithubUrl) {
-        setGithubUrlError('الرابط المدخل غير صالح. يرجى إدخال رابط تحميل مباشر صالح من GitHub (مثل مسار ملف أو رابط قسم الإصدارات).');
+        setGithubUrlError('الرابط غير صالح. أدخل رابط HTTPS لملف GitHub أو لإحدى إصدارات المستودع.');
         return;
       }
     }
@@ -136,7 +158,7 @@ export default function CMS() {
     setUploadProgress(0);
     try {
       const updatedApps = await saveApp(
-        { name, description, githubUrl: parsedGithubUrl || undefined },
+        { name: normalizedName, description, githubUrl: parsedGithubUrl || undefined },
         imageFile, 
         appFiles, 
         editingId || undefined,
@@ -161,7 +183,11 @@ export default function CMS() {
     setGithubUrl(app.githubUrl || '');
     setGithubUrlError('');
     setImageFile(null);
+    setImageSelectionError('');
     setAppFiles([]);
+    setFileSelectionError('');
+    if (imageInputRef.current) imageInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -184,7 +210,9 @@ export default function CMS() {
     setGithubUrl('');
     setGithubUrlError('');
     setImageFile(null);
+    setImageSelectionError('');
     setAppFiles([]);
+    setFileSelectionError('');
     if (imageInputRef.current) imageInputRef.current.value = '';
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -195,7 +223,7 @@ export default function CMS() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Tabs */}
-        <div className="flex space-x-4 space-x-reverse mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">
+        <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">
           <button
             onClick={() => setActiveTab('github')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'github' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
@@ -261,19 +289,22 @@ export default function CMS() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token (Repo Scope)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">رمز وصول GitHub محدود الصلاحيات</label>
                 <input
                   type="password"
                   required
                   value={githubConfig.token}
                   onChange={(e) => setGithubConfigState({...githubConfig, token: e.target.value})}
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  placeholder="أدخل رمز الوصول"
                   dir="ltr"
+                  autoComplete="new-password"
                 />
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  احصل على Token من إعدادات حسابك في GitHub (Developer settings &gt; Personal access tokens &gt; Tokens Classic).
-                  <strong className="text-indigo-600 dark:text-indigo-400 block mt-1">يجب اختيار صلاحية `repo` (Full control of private repositories) لضمان عمل الرفع بشكل مطلق وبدون قيود.</strong>
+                  أنشئ رمزاً مخصصاً لهذا المستودع وبأقل صلاحيات لازمة لقراءة وكتابة المحتوى وإدارة الإصدارات.
+                </p>
+                <p role="alert" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                  تنبيه أمني: الموقع ثابت ويحفظ الرمز في localStorage داخل المتصفح، لذلك يستطيع أي JavaScript يعمل في الصفحة الوصول إليه. لا تستخدم رمزاً واسع الصلاحيات؛ الحل الآمن النهائي هو نقل طلبات GitHub إلى خادم خلفي وحفظ السر في متغير بيئة.
                 </p>
               </div>
 
@@ -411,32 +442,44 @@ export default function CMS() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">صورة التطبيق *</label>
-                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-700 border-dashed rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors cursor-pointer bg-gray-50 dark:bg-gray-800" onClick={() => imageInputRef.current?.click()}>
-                      <div className="space-y-1 text-center">
-                        <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
-                          <span className="relative rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                            {imageFile ? imageFile.name : 'اختر صورة'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF حتى 5MB</p>
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => imageInputRef.current?.click()}
+                      aria-describedby="image-upload-help"
+                      className="mt-1 w-full flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-700 border-dashed rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors bg-gray-50 dark:bg-gray-800 disabled:opacity-60"
+                    >
+                      <span className="space-y-1 text-center">
+                        <ImageIcon className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true" />
+                        <span className="block text-sm text-indigo-600 dark:text-indigo-400 font-medium" dir="ltr">
+                          {imageFile ? imageFile.name : 'اختر صورة'}
+                        </span>
+                        <span id="image-upload-help" className="block text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF — حتى 10 MiB</span>
+                      </span>
+                    </button>
+                    {imageSelectionError && <p role="alert" className="mt-2 text-sm text-red-500">{imageSelectionError}</p>}
                     <input
                       type="file"
                       accept="image/*"
                       className="hidden"
                       ref={imageInputRef}
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          const file = e.target.files[0];
-                          if (file.size > 10 * 1024 * 1024) {
-                            alert('حجم الصورة كبير جداً (أكثر من 10MB). يرجى اختيار صورة أصغر لضمان سرعة الرفع.');
-                            e.target.value = '';
-                            return;
-                          }
-                          setImageFile(file);
+                      disabled={saving}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = '';
+                        if (!file) return;
+
+                        if (!file.type.startsWith('image/')) {
+                          setImageSelectionError('اختر ملف صورة صالحاً.');
+                          return;
                         }
+                        if (file.size > MAX_APP_IMAGE_BYTES) {
+                          setImageSelectionError('حجم الصورة يتجاوز الحد المسموح به وهو 10 MiB.');
+                          return;
+                        }
+
+                        setImageFile(file);
+                        setImageSelectionError('');
                       }}
                     />
                   </div>
@@ -454,37 +497,62 @@ export default function CMS() {
                       placeholder="https://github.com/user/repo/blob/main/file.apk"
                       dir="ltr"
                     />
-                    {githubUrlError && <p className="mt-1 text-sm text-red-500">{githubUrlError}</p>}
+                    {githubUrlError && <p role="alert" className="mt-1 text-sm text-red-500">{githubUrlError}</p>}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">أو رفع ملفات التطبيق من الجهاز</label>
-                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-700 border-dashed rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors cursor-pointer bg-gray-50 dark:bg-gray-800" onClick={() => fileInputRef.current?.click()}>
-                      <div className="space-y-1 text-center">
-                        <FileIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
-                          <span className="relative rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                            {appFiles.length > 0 ? `${appFiles.length} ملفات محددة` : 'اختر ملفات'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">يمكنك اختيار أكثر من ملف (APK, ZIP, RAR, EXE)</p>
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => fileInputRef.current?.click()}
+                      aria-describedby="app-files-help"
+                      className="mt-1 w-full flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-700 border-dashed rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors bg-gray-50 dark:bg-gray-800 disabled:opacity-60"
+                    >
+                      <span className="space-y-1 text-center">
+                        <FileIcon className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true" />
+                        <span className="block text-sm text-indigo-600 dark:text-indigo-400 font-medium">
+                          {appFiles.length > 0 ? `${appFiles.length} ملفات محددة` : 'اختر ملفات'}
+                        </span>
+                        <span id="app-files-help" className="block text-xs text-gray-500 dark:text-gray-400">APK, ZIP, RAR, EXE وغيرها — كل ملف أقل من 2 GiB، وحتى {MAX_GITHUB_RELEASE_ASSET_COUNT} ملفاً لكل إصدار</span>
+                      </span>
+                    </button>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">الرفع يستخدم GitHub Releases؛ لا يوجد حد 100MB من الموقع، لكن لا يمكن تجاوز حد GitHub. الملفات الأكبر تحتاج تخزيناً خارجياً.</p>
+                    {fileSelectionError && <p role="alert" className="mt-2 text-sm text-red-500">{fileSelectionError}</p>}
                     {appFiles.length > 0 && (
                       <div className="mt-3 space-y-3">
-                        {appFiles.map((f, i) => (
-                          <div key={i} className="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 truncate" dir="ltr">{f.file.name}</div>
+                        <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                          إجمالي المحدد: {formatFileSize(appFiles.reduce((total, item) => total + item.file.size, 0))}
+                        </p>
+                        {appFiles.map((item, index) => (
+                          <div key={`${item.file.name}-${item.file.lastModified}-${item.file.size}-${index}`} className="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                              <span className="min-w-0 text-xs text-gray-500 dark:text-gray-400 truncate" dir="ltr">{item.file.name}</span>
+                              <span className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(item.file.size)}</span>
+                                <button
+                                  type="button"
+                                  disabled={saving}
+                                  onClick={() => setAppFiles((currentFiles) => currentFiles.filter((_, currentIndex) => currentIndex !== index))}
+                                  className="p-1 rounded-md text-gray-500 hover:text-red-600 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                                  aria-label={`إزالة الملف ${item.file.name}`}
+                                >
+                                  <X className="w-4 h-4" aria-hidden="true" />
+                                </button>
+                              </span>
+                            </div>
                             <input
                               type="text"
-                              value={f.customName}
-                              onChange={(e) => {
-                                const newFiles = [...appFiles];
-                                newFiles[i].customName = e.target.value;
-                                setAppFiles(newFiles);
+                              value={item.customName}
+                              disabled={saving}
+                              onChange={(event) => {
+                                setAppFiles((currentFiles) => currentFiles.map((currentFile, currentIndex) =>
+                                  currentIndex === index ? { ...currentFile, customName: event.target.value } : currentFile,
+                                ));
                               }}
-                              className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm"
-                              placeholder="اسم الملف (مثال: نسخة للاندرويد)"
+                              className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm disabled:opacity-60"
+                              placeholder="اسم الملف (مثال: نسخة للأندرويد)"
+                              aria-label={`اسم العرض للملف ${item.file.name}`}
                             />
                           </div>
                         ))}
@@ -495,26 +563,61 @@ export default function CMS() {
                       multiple
                       className="hidden"
                       ref={fileInputRef}
-                      onChange={(e) => {
-                        if (e.target.files) {
-                          const files = Array.from(e.target.files);
-                          const largeFiles = files.filter(f => f.size > 100 * 1024 * 1024);
-                          if (largeFiles.length > 0) {
-                            alert('لقد اخترت ملفات كبيرة جداً (أكثر من 100MB). الرفع قد يستغرق وقتاً طويلاً، يرجى التأكد من عدم إغلاق الصفحة واستقرار الإنترنت لضمان نجاح العملية.');
+                      disabled={saving}
+                      onChange={(event) => {
+                        const selectedFiles = Array.from(event.currentTarget.files || []);
+                        event.currentTarget.value = '';
+                        if (selectedFiles.length === 0) return;
+
+                        const rejectedFiles = selectedFiles.filter((file) => !isWithinGithubReleaseLimit(file.size));
+                        const acceptedFiles = selectedFiles.filter((file) => isWithinGithubReleaseLimit(file.size));
+                        const seenFiles = new Set(appFiles.map(({ file }) => `${file.name}:${file.size}:${file.lastModified}`));
+                        const newFiles: { file: File; customName: string }[] = [];
+                        for (const file of acceptedFiles) {
+                          const signature = `${file.name}:${file.size}:${file.lastModified}`;
+                          if (!seenFiles.has(signature)) {
+                            seenFiles.add(signature);
+                            newFiles.push({ file, customName: file.name });
                           }
-                          const newFiles = files.map(f => ({ file: f, customName: f.name }));
-                          setAppFiles(newFiles);
+                        }
+
+                        const availableSlots = Math.max(0, MAX_GITHUB_RELEASE_ASSET_COUNT - appFiles.length);
+                        const filesToAdd = newFiles.slice(0, availableSlots);
+                        const selectionErrors = [];
+                        if (rejectedFiles.length > 0) {
+                          selectionErrors.push(`لم تتم إضافة الملفات التي تساوي أو تتجاوز 2 GiB: ${rejectedFiles.map((file) => file.name).join('، ')}`);
+                        }
+                        if (filesToAdd.length < newFiles.length) {
+                          selectionErrors.push(`لا يمكن أن يتجاوز عدد ملفات الإصدار ${MAX_GITHUB_RELEASE_ASSET_COUNT}.`);
+                        }
+                        setFileSelectionError(selectionErrors.join(' '));
+                        if (filesToAdd.length > 0) {
+                          setAppFiles((currentFiles) => [...currentFiles, ...filesToAdd]);
                         }
                       }}
                     />
                   </div>
 
                   <div className="pt-4 flex flex-col gap-3">
-                    {saving && uploadProgress > 0 && (
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-2">
-                        <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                        <p className="text-xs text-gray-500 mt-1 text-center">جاري الرفع... {Math.round(uploadProgress)}%</p>
+                    {saving && appFiles.length > 0 && (
+                      <div>
+                        <div
+                          className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden"
+                          role="progressbar"
+                          aria-label="تقدم رفع ملفات التطبيق"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={Math.round(uploadProgress)}
+                        >
+                          <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-150" style={{ width: `${Math.min(100, Math.max(0, uploadProgress))}%` }} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 text-center" aria-live="polite">
+                          جاري رفع الملفات... {Math.round(uploadProgress)}%
+                        </p>
                       </div>
+                    )}
+                    {saving && appFiles.length === 0 && (
+                      <p className="text-xs text-gray-500 text-center" role="status">جارٍ حفظ الصورة والبيانات على GitHub...</p>
                     )}
                     <div className="flex gap-3 w-full">
                       <button
@@ -522,14 +625,15 @@ export default function CMS() {
                         disabled={saving}
                         className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
                       >
-                        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                        {editingId ? 'حفظ التعديلات' : 'رفع ونشر'}
+                        {saving && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
+                        {saving ? 'جارٍ الرفع والحفظ...' : editingId ? 'حفظ التعديلات' : 'رفع ونشر'}
                       </button>
                       {editingId && (
                         <button
                           type="button"
                           onClick={resetForm}
-                          className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          disabled={saving}
+                          className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
                         >
                           إلغاء
                         </button>
@@ -552,6 +656,17 @@ export default function CMS() {
                   <div className="flex justify-center items-center h-64">
                     <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
                   </div>
+                ) : loadError ? (
+                  <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                    <p className="text-gray-500 dark:text-gray-400 mb-3">تعذر تحميل قائمة التطبيقات. تحقق من اتصال GitHub ثم أعد المحاولة.</p>
+                    <button
+                      type="button"
+                      onClick={() => void loadData()}
+                      className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      إعادة المحاولة
+                    </button>
+                  </div>
                 ) : apps.length === 0 ? (
                   <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
                     <p className="text-gray-500 dark:text-gray-400">لا توجد تطبيقات مرفوعة حالياً</p>
@@ -566,7 +681,7 @@ export default function CMS() {
                         <div className="flex-grow min-w-0">
                           <h3 className="font-bold text-gray-900 dark:text-white truncate">{app.name}</h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                            {app.files ? `${app.files.length} ملفات` : app.fileName}
+                            {getAppFiles(app).length > 0 ? `${getAppFiles(app).length} ملفات قابلة للتحميل` : 'لا توجد ملفات مرفقة'}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">

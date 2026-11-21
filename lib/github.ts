@@ -8,8 +8,20 @@ export interface GithubConfig {
 
 export const getGithubConfig = (): GithubConfig | null => {
   if (typeof window === 'undefined') return null;
-  const config = localStorage.getItem('github_config');
-  return config ? JSON.parse(config) : null;
+
+  try {
+    const storedConfig = localStorage.getItem('github_config');
+    if (!storedConfig) return null;
+
+    const config = JSON.parse(storedConfig) as Partial<GithubConfig>;
+    if (typeof config.username !== 'string' || typeof config.repo !== 'string' || typeof config.token !== 'string') {
+      return null;
+    }
+
+    return { username: config.username, repo: config.repo, token: config.token };
+  } catch {
+    return null;
+  }
 };
 
 export const saveGithubConfig = (config: GithubConfig) => {
@@ -177,11 +189,16 @@ export const createRelease = async (config: GithubConfig, tag: string, name: str
   }
 };
 
-export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string, file: File, fileName: string, onProgress?: (progress: number) => void): Promise<any> => {
+export const uploadReleaseAsset = (
+  config: GithubConfig,
+  uploadUrl: string,
+  file: File,
+  fileName: string,
+  onProgress?: (loadedBytes: number, totalBytes: number) => void,
+): Promise<any> => {
   const cleanUrl = uploadUrl.split('{')[0];
   const url = `${cleanUrl}?name=${encodeURIComponent(fileName)}`;
 
-  // تحديد نوع المحتوى بناءً على الامتداد لتحسين التوافق
   let contentType = 'application/octet-stream';
   if (fileName.toLowerCase().endsWith('.apk')) {
     contentType = 'application/vnd.android.package-archive';
@@ -193,42 +210,71 @@ export const uploadReleaseAsset = async (config: GithubConfig, uploadUrl: string
     contentType = 'application/x-msdownload';
   }
 
-  try {
-    // استخدام fetch بدلاً من XMLHttpRequest لتجنب مشاكل CORS والشبكة في المتصفحات الحديثة
-    // fetch يعتبر "أفضل ممارسة" (Best Practice) للتعامل مع GitHub API في المتصفح
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.token}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': contentType,
-      },
-      body: file, // fetch يقبل كائن File مباشرة وبكفاءة عالية
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', url);
+    request.setRequestHeader('Authorization', `Bearer ${config.token}`);
+    request.setRequestHeader('Accept', 'application/vnd.github+json');
+    request.setRequestHeader('X-GitHub-Api-Version', '2022-11-28');
+    request.setRequestHeader('Content-Type', contentType);
+
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        onProgress?.(event.loaded, event.total);
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Upload Asset Error:', response.status, errorText);
-      let errorMsg = `فشل رفع الملف (${response.status})`;
-      if (response.status === 422) {
-        errorMsg = "هذا الملف موجود بالفعل في هذا الإصدار. يرجى تغيير اسم الملف أو حذف الإصدار القديم.";
-      } else if (response.status === 401 || response.status === 403) {
-        errorMsg = "خطأ في الصلاحيات: تأكد من أن الـ Token لديه صلاحية الوصول الكامل للمستودع (repo).";
+    request.addEventListener('load', () => {
+      let response: { message?: string } | null = null;
+      try {
+        response = request.responseText ? JSON.parse(request.responseText) : null;
+      } catch {
+        response = null;
       }
-      throw new Error(errorMsg);
-    }
 
-    // محاكاة التقدم لأن fetch لا يدعم onprogress بشكل افتراضي للرفع
-    if (onProgress) {
-      onProgress(100);
-    }
+      if (request.status >= 200 && request.status < 300) {
+        onProgress?.(file.size, file.size);
+        if (response) {
+          resolve(response);
+        } else {
+          reject(new Error('استقبلنا استجابة غير صالحة من GitHub بعد رفع الملف.'));
+        }
+        return;
+      }
 
-    return await response.json();
-  } catch (error: any) {
-    console.error('Fetch error during upload:', error);
-    throw new Error("حدث خطأ في الشبكة أثناء الرفع. تأكد من استقرار الإنترنت وحاول مرة أخرى. إذا كان الملف كبيراً جداً، قد يكون هناك قيود من المتصفح.");
-  }
+      const providerMessage = response?.message;
+      let message = providerMessage
+        ? `رفض GitHub رفع الملف: ${providerMessage}`
+        : `فشل رفع الملف إلى GitHub (HTTP ${request.status}).`;
+
+      if (request.status === 401 || request.status === 403) {
+        message = 'رفض GitHub الرفع بسبب الصلاحيات أو إعدادات المستودع. تحقق من صلاحيات Contents وReleases للرمز المستخدم.';
+      } else if (request.status === 404) {
+        message = 'لم يعثر GitHub على الإصدار أو مسار رفع الملف. أعد المحاولة بعد إعادة تحميل لوحة التحكم.';
+      } else if (request.status === 413) {
+        message = 'رفض GitHub الملف لأنه بلغ حد الحجم؛ يجب أن يكون كل ملف أصغر من 2 GiB.';
+      } else if (request.status === 422) {
+        message = 'رفض GitHub الملف (422). قد يكون الاسم مستخدماً مسبقاً في هذا الإصدار أو تجاوز الإصدار حد عدد الملفات.';
+      } else if (request.status >= 500) {
+        message = `واجه GitHub خطأً مؤقتاً أثناء الرفع (HTTP ${request.status}). قد تحتاج إلى إعادة المحاولة؛ الرفع غير قابل للاستئناف.`;
+      }
+
+      reject(new Error(message));
+    });
+
+    request.addEventListener('error', () => {
+      reject(new Error('انقطع الاتصال أثناء الرفع. تحقق من الشبكة ثم أعد المحاولة؛ GitHub لا يستأنف هذا الرفع تلقائياً.'));
+    });
+    request.addEventListener('abort', () => {
+      reject(new Error('تم إيقاف رفع الملف قبل اكتماله.'));
+    });
+    request.addEventListener('timeout', () => {
+      reject(new Error('انتهت مهلة الاتصال أثناء الرفع. أعد المحاولة على اتصال مستقر.'));
+    });
+
+    // Send the File directly; avoid Base64/ArrayBuffer copies for large assets.
+    request.send(file);
+  });
 };
 
 export const deleteReleaseByTag = async (config: GithubConfig, tag: string) => {
